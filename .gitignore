@@ -1,0 +1,60 @@
+# Dependências
+node_modules
+/.package-lock.json
+/.yarn-integrity
+
+# Ambiente
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+!.env.example
+
+# Firebase / GCP - Service Account keys (sensibles!)
+*-firebase-adminsdk-*.json
+firebase-adminsdk*.json
+*serviceAccount*.json
+service-account*.json
+*service-account*.json
+credentials*.json
+*credentials*.json
+secrets*.json
+secrets/
+.gcloud/
+application_default_credentials.json
+
+# Build outputs
+/.next
+/out
+*.tsbuildinfo
+
+# Exportaciones del banco (artefactos generados por scripts/export-bank-to-jsonl.js)
+/exports
+
+# Logs
+/pnpm-debug.log
+/yarn-debug.log
+
+# API Keys (não commitar!)
+# .env.local já está listado acima, mas adicionar aqui também para segurança
+
+# Certificados y claves privadas
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.asc
+*.gpg
+*.p8
+id_rsa*
+id_ed25519*
+
+# Tokens y config con credenciales
+.npmrc
+.yarnrc
+.pnpmfile.cjs
+*.token
