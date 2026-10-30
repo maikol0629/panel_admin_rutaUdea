@@ -99,9 +99,7 @@ export default function UsuariosPage() {
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Error al actualizar');
       setUsuarios((prev) =>
-        prev.map((u) =>
-          u.uid === uid ? { ...u, [campo]: valor } : u,
-        ),
+        prev.map((u) => (u.uid === uid ? { ...u, [campo]: valor } : u)),
       );
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Error al actualizar usuario');
@@ -129,9 +127,7 @@ export default function UsuariosPage() {
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Error al deshabilitar');
       setUsuarios((prev) =>
-        prev.map((u) =>
-          u.uid === uid ? { ...u, estado: 'deshabilitado' } : u,
-        ),
+        prev.map((u) => (u.uid === uid ? { ...u, estado: 'deshabilitado' } : u)),
       );
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Error al deshabilitar usuario');
@@ -153,15 +149,9 @@ export default function UsuariosPage() {
       user={usuario}
       maxWidth="7xl"
     >
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">
-        Usuarios y roles
-      </h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Usuarios y roles</h1>
 
-      {error && (
-        <div className="mb-6 p-4 rounded-lg bg-red-50 text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-6 p-4 rounded-lg bg-red-50 text-red-700">{error}</div>}
 
       <div className="mb-6 flex items-center gap-2">
         <button
@@ -198,14 +188,16 @@ export default function UsuariosPage() {
                   <select
                     value={u.rol}
                     disabled={guardando.has(u.uid)}
-                    onChange={(e) =>
-                      actualizarUsuario(u.uid, 'rol', e.target.value)
-                    }
+                    onChange={(e) => actualizarUsuario(u.uid, 'rol', e.target.value)}
                     className="px-2 py-1.5 rounded border border-slate-300 text-sm bg-white disabled:opacity-50"
                   >
                     {rolOptions.map((r) => (
                       <option key={r} value={r}>
-                        {r === 'superadmin' ? 'Superadmin' : r === 'admin' ? 'Admin' : 'Aspirante'}
+                        {r === 'superadmin'
+                          ? 'Superadmin'
+                          : r === 'admin'
+                            ? 'Admin'
+                            : 'Aspirante'}
                       </option>
                     ))}
                   </select>
@@ -214,9 +206,7 @@ export default function UsuariosPage() {
                   <select
                     value={u.estado}
                     disabled={guardando.has(u.uid)}
-                    onChange={(e) =>
-                      actualizarUsuario(u.uid, 'estado', e.target.value)
-                    }
+                    onChange={(e) => actualizarUsuario(u.uid, 'estado', e.target.value)}
                     className="px-2 py-1.5 rounded border border-slate-300 text-sm bg-white disabled:opacity-50"
                   >
                     {estadoOptions.map((e) => (
@@ -226,9 +216,7 @@ export default function UsuariosPage() {
                     ))}
                   </select>
                 </td>
-                <td className="px-6 py-3 text-slate-600">
-                  {u.proveedor ?? '—'}
-                </td>
+                <td className="px-6 py-3 text-slate-600">{u.proveedor ?? '—'}</td>
                 <td className="px-6 py-3">
                   {u.uid === (usuario?.uid ?? '') ? (
                     <span className="text-xs text-slate-400">Tu cuenta</span>
@@ -256,10 +244,10 @@ export default function UsuariosPage() {
       </div>
 
       <p className="mt-6 text-xs text-slate-500">
-        Solo el superadministrador puede asignar o modificar roles. El primer
-        superadmin se crea con el script de inicialización; después se gestiona
-        desde esta pantalla. Los cambios de rol requieren que el usuario cierre
-        sesión y vuelva a entrar para aplicarse en el token.
+        Solo el superadministrador puede asignar o modificar roles. El primer superadmin
+        se crea con el script de inicialización; después se gestiona desde esta pantalla.
+        Los cambios de rol requieren que el usuario cierre sesión y vuelva a entrar para
+        aplicarse en el token.
       </p>
     </AdminLayout>
   );

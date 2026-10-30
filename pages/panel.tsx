@@ -188,20 +188,22 @@ export default function PanelDashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {MODULOS.filter((m) => m.href !== '/panel/usuarios' || esSuperadmin).map((modulo) => (
-          <a
-            key={modulo.href}
-            href={modulo.href}
-            className={`group block rounded-lg border border-dashed ${modulo.borde} p-6 text-center cursor-pointer ${modulo.hover} transition-colors`}
-          >
-            <h3
-              className={`text-lg font-medium text-gray-500 ${modulo.texto} transition-colors`}
+        {MODULOS.filter((m) => m.href !== '/panel/usuarios' || esSuperadmin).map(
+          (modulo) => (
+            <a
+              key={modulo.href}
+              href={modulo.href}
+              className={`group block rounded-lg border border-dashed ${modulo.borde} p-6 text-center cursor-pointer ${modulo.hover} transition-colors`}
             >
-              {modulo.titulo}
-            </h3>
-            <p className="mt-2 text-sm text-gray-400">{modulo.descripcion}</p>
-          </a>
-        ))}
+              <h3
+                className={`text-lg font-medium text-gray-500 ${modulo.texto} transition-colors`}
+              >
+                {modulo.titulo}
+              </h3>
+              <p className="mt-2 text-sm text-gray-400">{modulo.descripcion}</p>
+            </a>
+          ),
+        )}
       </div>
     </AdminLayout>
   );

@@ -59,8 +59,7 @@ async function listarUsuarios(): Promise<UsuarioResumen[]> {
       if (!existente.correo) existente.correo = userRecord.email ?? null;
       if (!existente.proveedor) {
         existente.proveedor =
-          userRecord.providerData.length > 0 &&
-          userRecord.providerData[0]
+          userRecord.providerData.length > 0 && userRecord.providerData[0]
             ? userRecord.providerData[0]!.providerId
             : 'contraseña';
       }
@@ -73,8 +72,7 @@ async function listarUsuarios(): Promise<UsuarioResumen[]> {
         rol: 'aspirante',
         estado: userRecord.disabled ? 'deshabilitado' : 'activo',
         proveedor:
-          userRecord.providerData.length > 0 &&
-          userRecord.providerData[0]
+          userRecord.providerData.length > 0 && userRecord.providerData[0]
             ? userRecord.providerData[0]!.providerId
             : 'contraseña',
       });
@@ -86,18 +84,12 @@ async function listarUsuarios(): Promise<UsuarioResumen[]> {
   );
 }
 
-async function handleGet(
-  _req: NextApiRequest,
-  res: NextApiResponse,
-) {
+async function handleGet(_req: NextApiRequest, res: NextApiResponse) {
   const usuarios = await listarUsuarios();
   return res.status(200).json({ success: true, usuarios });
 }
 
-async function handlePost(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   const auth = getAdminAuth();
   const db = getAdminDb();
   const body =
@@ -113,9 +105,7 @@ async function handlePost(
     return res.status(400).json({ error: 'El correo es requerido.' });
   }
   if (!['admin', 'superadmin'].includes(rol)) {
-    return res
-      .status(400)
-      .json({ error: 'El rol debe ser "admin" o "superadmin".' });
+    return res.status(400).json({ error: 'El rol debe ser "admin" o "superadmin".' });
   }
 
   // Buscar el usuario en Auth por correo.
@@ -126,13 +116,12 @@ async function handlePost(
     usuarioPorCorreo = null;
   }
 
-  let uid: string;
   if (!usuarioPorCorreo) {
     return res
       .status(404)
       .json({ error: 'No existe un usuario de Firebase Auth con ese correo.' });
   }
-  uid = usuarioPorCorreo.uid;
+  const uid = usuarioPorCorreo.uid;
 
   // Actualizar custom claim y documento de Firestore.
   await auth.setCustomUserClaims(uid, { rol, nombre });
@@ -168,8 +157,7 @@ async function handlePatch(
 
   const uidObjetivo = typeof body['uid'] === 'string' ? body['uid'] : '';
   const rolNuevo = typeof body['rol'] === 'string' ? body['rol'] : undefined;
-  const estadoNuevo =
-    typeof body['estado'] === 'string' ? body['estado'] : undefined;
+  const estadoNuevo = typeof body['estado'] === 'string' ? body['estado'] : undefined;
 
   if (!uidObjetivo) {
     return res.status(400).json({ error: 'El uid es requerido.' });
@@ -178,14 +166,10 @@ async function handlePatch(
   // No se permite autodeshabilitarse ni autodegradarse.
   if (uidObjetivo === identidad.uid) {
     if (rolNuevo && rolNuevo !== identidad.rol) {
-      return res
-        .status(400)
-        .json({ error: 'No puedes cambiar tu propio rol.' });
+      return res.status(400).json({ error: 'No puedes cambiar tu propio rol.' });
     }
     if (estadoNuevo === 'deshabilitado') {
-      return res
-        .status(400)
-        .json({ error: 'No puedes deshabilitar tu propia cuenta.' });
+      return res.status(400).json({ error: 'No puedes deshabilitar tu propia cuenta.' });
     }
   }
 
@@ -205,10 +189,7 @@ async function handlePatch(
       .where('rol', '==', 'superadmin')
       .get();
     if (superadmins.size <= 1) {
-      if (
-        (rolNuevo && rolNuevo !== 'superadmin') ||
-        estadoNuevo === 'deshabilitado'
-      ) {
+      if ((rolNuevo && rolNuevo !== 'superadmin') || estadoNuevo === 'deshabilitado') {
         return res.status(400).json({
           error: 'No se puede deshabilitar ni degradar al último superadministrador.',
         });
@@ -299,17 +280,13 @@ async function handleDelete(
   });
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   let identidad: { uid: string; rol: string };
   try {
     const admin = await requireSuperadmin(req);
     identidad = { uid: admin.uid, rol: admin.rol as string };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Error de autenticación';
+    const message = error instanceof Error ? error.message : 'Error de autenticación';
     return res.status(adminErrorStatus(error)).json({ error: message });
   }
 
@@ -322,8 +299,7 @@ export default async function handler(
     return res.status(405).json({ error: 'Método no permitido' });
   } catch (error) {
     console.error('Error en /api/usuarios:', error);
-    const message =
-      error instanceof Error ? error.message : 'Error interno de usuarios';
+    const message = error instanceof Error ? error.message : 'Error interno de usuarios';
     return res.status(500).json({ error: message });
   }
 }
