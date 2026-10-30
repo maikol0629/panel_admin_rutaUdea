@@ -10,6 +10,7 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import {
   adminErrorStatus,
   COLECCION_CONTEXTS,
@@ -94,29 +95,35 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     .limit(MAX_DOCS)
     .get();
 
-  let contextos = snapshot.docs.map((doc) =>
+  let contextos = snapshot.docs.map((doc: QueryDocumentSnapshot) =>
     normalizarContexto(doc.id, doc.data() as Record<string, unknown>),
   );
 
-  if (area) contextos = contextos.filter((c) => c['area'] === area);
-  if (bankVersion) contextos = contextos.filter((c) => c['bank_version'] === bankVersion);
+  if (area)
+    contextos = contextos.filter((c: Record<string, unknown>) => c['area'] === area);
+  if (bankVersion)
+    contextos = contextos.filter(
+      (c: Record<string, unknown>) => c['bank_version'] === bankVersion,
+    );
   if (search) {
-    contextos = contextos.filter((c) => {
+    contextos = contextos.filter((c: Record<string, unknown>) => {
       const texto =
         `${asString(c['id'])} ${asString(c['titulo'])} ${asString(c['texto'])} ${asString(c['subtema'])}`.toLowerCase();
       return texto.includes(search);
     });
   }
 
-  contextos.sort((a, b) =>
+  contextos.sort((a: Record<string, unknown>, b: Record<string, unknown>) =>
     asString(a['id']).localeCompare(asString(b['id']), 'es', { numeric: true }),
   );
 
   const conImagen = contextos.filter(
-    (c) => Array.isArray(c['imagenes']) && (c['imagenes'] as unknown[]).length > 0,
+    (c: Record<string, unknown>) =>
+      Array.isArray(c['imagenes']) && (c['imagenes'] as unknown[]).length > 0,
   ).length;
   const conMultiples = contextos.filter(
-    (c) => Array.isArray(c['imagenes']) && (c['imagenes'] as unknown[]).length > 1,
+    (c: Record<string, unknown>) =>
+      Array.isArray(c['imagenes']) && (c['imagenes'] as unknown[]).length > 1,
   ).length;
 
   return res.status(200).json({
@@ -127,10 +134,12 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       total: contextos.length,
       conImagen,
       conMultiples,
-      razonamiento_logico: contextos.filter((c) => c['area'] === 'razonamiento_logico')
-        .length,
-      competencia_lectora: contextos.filter((c) => c['area'] === 'competencia_lectora')
-        .length,
+      razonamiento_logico: contextos.filter(
+        (c: Record<string, unknown>) => c['area'] === 'razonamiento_logico',
+      ).length,
+      competencia_lectora: contextos.filter(
+        (c: Record<string, unknown>) => c['area'] === 'competencia_lectora',
+      ).length,
     },
   });
 }

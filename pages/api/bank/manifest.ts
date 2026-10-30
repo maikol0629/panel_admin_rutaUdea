@@ -20,6 +20,7 @@
 
 import { createHash } from 'crypto';
 import type { NextApiRequest, NextApiResponse } from 'next';
+import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import {
   adminErrorStatus,
   COLECCION_BANK_MANIFEST,
@@ -58,9 +59,11 @@ async function cargarPreguntas(bankVersion?: string): Promise<PreguntaV2[]> {
     .limit(MAX_DOCS)
     .get();
   return snapshot.docs
-    .map((doc) => normalizarPregunta(doc.id, doc.data() as Record<string, unknown>))
-    .filter((p) => Boolean(p.area) && Boolean(p.pregunta))
-    .filter((p) => (bankVersion ? p.bank_version === bankVersion : true));
+    .map((doc: QueryDocumentSnapshot) =>
+      normalizarPregunta(doc.id, doc.data() as Record<string, unknown>),
+    )
+    .filter((p: PreguntaV2) => Boolean(p.area) && Boolean(p.pregunta))
+    .filter((p: PreguntaV2) => (bankVersion ? p.bank_version === bankVersion : true));
 }
 
 async function cargarContextos(): Promise<Map<string, Record<string, unknown>>> {
@@ -69,15 +72,18 @@ async function cargarContextos(): Promise<Map<string, Record<string, unknown>>> 
     .limit(MAX_DOCS)
     .get();
   return new Map(
-    snapshot.docs.map((doc) => [doc.id, doc.data() as Record<string, unknown>]),
+    snapshot.docs.map((doc: QueryDocumentSnapshot) => [
+      doc.id,
+      doc.data() as Record<string, unknown>,
+    ]),
   );
 }
 
 /** Hash estable del lote: versión + ids ordenados + updated_at. */
 export function calcularHashLote(bankVersion: string, preguntas: PreguntaV2[]): string {
   const firma = preguntas
-    .filter(esAprobada)
-    .map((p) => `${p.id}:${asString(p.updated_at)}:${p.estado}`)
+    .filter((p: PreguntaV2) => esAprobada(p))
+    .map((p: PreguntaV2) => `${p.id}:${asString(p.updated_at)}:${p.estado}`)
     .sort()
     .join('\n');
   return createHash('sha256').update(`${bankVersion}\n${firma}`).digest('hex');
@@ -89,7 +95,7 @@ function verificarLote(
   bankVersion: string,
 ) {
   const motivos = validarLoteParaPublicar(preguntas, bankVersion);
-  const aprobadas = preguntas.filter(esAprobada);
+  const aprobadas = preguntas.filter((p: PreguntaV2) => esAprobada(p));
 
   for (const p of aprobadas) {
     for (const contextoId of p.contexto_ids ?? []) {
@@ -117,12 +123,14 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     ? ((manifiestoSnap.data() ?? {}) as Record<string, unknown>)
     : null;
   const versionActiva = asString(activo?.['bank_version'], BANK_VERSION_DEFAULT);
-  const deVersion = preguntas.filter((p) => p.bank_version === versionActiva);
+  const deVersion = preguntas.filter((p: PreguntaV2) => p.bank_version === versionActiva);
   const resumen = resumenBanco(preguntas);
   const { motivos } = verificarLote(deVersion, contextos, versionActiva);
 
   const imagenes = deVersion.flatMap((p) => p.imagenes);
-  const conUrl = imagenes.filter((img) => Boolean(img.url)).length;
+  const conUrl = imagenes.filter((img: PreguntaV2['imagenes'][number]) =>
+    Boolean(img.url),
+  ).length;
 
   return res.status(200).json({
     success: true,
@@ -134,7 +142,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       motivos: motivos.slice(0, 50),
       totalMotivos: motivos.length,
       preguntasDeLaVersion: deVersion.length,
-      aprobadasDeLaVersion: deVersion.filter(esAprobada).length,
+      aprobadasDeLaVersion: deVersion.filter((p: PreguntaV2) => esAprobada(p)).length,
       contextos: contextos.size,
       imagenes: imagenes.length,
       imagenesConUrl: conUrl,
@@ -165,8 +173,8 @@ async function handlePost(
     cargarPreguntas(),
     cargarContextos(),
   ]);
-  const deVersion = preguntas.filter((p) => p.bank_version === bankVersion);
-  if (deVersion.filter(esAprobada).length === 0) {
+  const deVersion = preguntas.filter((p: PreguntaV2) => p.bank_version === bankVersion);
+  if (deVersion.filter((p: PreguntaV2) => esAprobada(p)).length === 0) {
     return res.status(400).json({
       error: `No hay preguntas aprobadas de la versión ${bankVersion}.`,
     });
@@ -202,7 +210,9 @@ async function handlePost(
       pendiente: resumen.pendiente,
       deshabilitado: resumen.deshabilitado,
       imagenes: imagenes.length,
-      imagenes_con_url: imagenes.filter((img) => Boolean(img.url)).length,
+      imagenes_con_url: imagenes.filter((img: PreguntaV2['imagenes'][number]) =>
+        Boolean(img.url),
+      ).length,
       contextos: contextos.size,
     },
     published_at: ahora,

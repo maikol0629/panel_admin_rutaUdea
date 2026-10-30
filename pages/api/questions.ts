@@ -12,6 +12,7 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import {
   adminErrorStatus,
   COLECCION_QUESTIONS,
@@ -83,41 +84,48 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   const snapshot = await getAdminDb().collection(coleccion).limit(MAX_DOCS).get();
 
   let preguntas = snapshot.docs
-    .map((doc) => normalizarPregunta(doc.id, doc.data() as Record<string, unknown>))
+    .map((doc: QueryDocumentSnapshot) =>
+      normalizarPregunta(doc.id, doc.data() as Record<string, unknown>),
+    )
     // Descarta documentos sin la forma mínima (los rechazos del banco sucio).
-    .filter((p) => Boolean(p.area) && Boolean(p.pregunta));
+    .filter((p: PreguntaV2) => Boolean(p.area) && Boolean(p.pregunta));
 
-  if (area) preguntas = preguntas.filter((p) => p.area === area);
-  if (subtema) preguntas = preguntas.filter((p) => p.subtema === subtema);
-  if (dificultad) preguntas = preguntas.filter((p) => p.dificultad === dificultad);
-  if (estado) preguntas = preguntas.filter((p) => p.estado === estado);
+  if (area) preguntas = preguntas.filter((p: PreguntaV2) => p.area === area);
+  if (subtema) preguntas = preguntas.filter((p: PreguntaV2) => p.subtema === subtema);
+  if (dificultad)
+    preguntas = preguntas.filter((p: PreguntaV2) => p.dificultad === dificultad);
+  if (estado) preguntas = preguntas.filter((p: PreguntaV2) => p.estado === estado);
   if (bankVersion) {
-    preguntas = preguntas.filter((p) => p.bank_version === bankVersion);
+    preguntas = preguntas.filter((p: PreguntaV2) => p.bank_version === bankVersion);
   }
   if (confianza) {
     preguntas = preguntas.filter(
-      (p) => (p.confianza_modelo ?? 'sin_definir') === confianza,
+      (p: PreguntaV2) => (p.confianza_modelo ?? 'sin_definir') === confianza,
     );
   }
-  if (tarea) preguntas = preguntas.filter((p) => p.tarea === tarea);
+  if (tarea) preguntas = preguntas.filter((p: PreguntaV2) => p.tarea === tarea);
   if (conImagen) {
-    preguntas = preguntas.filter((p) => p.imagenes.length > 0 || Boolean(p.imagen_url));
+    preguntas = preguntas.filter(
+      (p: PreguntaV2) => p.imagenes.length > 0 || Boolean(p.imagen_url),
+    );
   }
   if (opcionesEnImagen) {
-    preguntas = preguntas.filter((p) => p.opciones_en_imagen);
+    preguntas = preguntas.filter((p: PreguntaV2) => p.opciones_en_imagen);
   }
   if (search) {
     preguntas = preguntas.filter(
-      (p) =>
+      (p: PreguntaV2) =>
         p.pregunta.toLowerCase().includes(search) || p.id.toLowerCase().includes(search),
     );
   }
   if (idFiltro) {
-    preguntas = preguntas.filter((p) => p.id.toLowerCase().includes(idFiltro));
+    preguntas = preguntas.filter((p: PreguntaV2) =>
+      p.id.toLowerCase().includes(idFiltro),
+    );
   }
 
-  const totalIncompletas = preguntas.filter(esIncompleta).length;
-  if (incompletas) preguntas = preguntas.filter(esIncompleta);
+  const totalIncompletas = preguntas.filter((p: PreguntaV2) => esIncompleta(p)).length;
+  if (incompletas) preguntas = preguntas.filter((p: PreguntaV2) => esIncompleta(p));
 
   const ordenables = new Set([
     'id',
@@ -133,7 +141,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     'confianza_modelo',
   ]);
   const campo = ordenables.has(orderBy) ? orderBy : 'id';
-  preguntas.sort((a, b) => {
+  preguntas.sort((a: PreguntaV2, b: PreguntaV2) => {
     const aVal = String((a as unknown as Record<string, unknown>)[campo] ?? '');
     const bVal = String((b as unknown as Record<string, unknown>)[campo] ?? '');
     const cmp = aVal.localeCompare(bVal, 'es', { numeric: true });
