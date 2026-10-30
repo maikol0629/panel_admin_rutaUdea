@@ -27,7 +27,8 @@ export default function LoginPage() {
         .getIdTokenResult()
         .then((tokenResult) => {
           const claims = tokenResult.claims as Record<string, unknown>;
-          if (claims['rol'] === 'admin') {
+          const rol = claims['rol'] as string;
+          if (rol === 'admin' || rol === 'superadmin') {
             void router.replace('/panel');
           } else {
             signOut(auth).finally(() => {
@@ -51,7 +52,8 @@ export default function LoginPage() {
       const cred = await signInWithEmailAndPassword(auth, correo.trim(), password);
       const tokenResult = await cred.user.getIdTokenResult(true);
       const claims = tokenResult.claims as Record<string, unknown>;
-      if (claims['rol'] !== 'admin') {
+      const rol = claims['rol'] as string;
+      if (rol !== 'admin' && rol !== 'superadmin') {
         await signOut(auth);
         setError('Acceso solo para administradores.');
         return;
