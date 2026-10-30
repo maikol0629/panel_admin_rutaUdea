@@ -106,7 +106,8 @@ export async function requireAdmin(req: {
 
   // En firebase-admin los custom claims van en el nivel superior del token.
   const rol = claims['rol'];
-  if (rol !== 'admin') {
+  const rolesValidos = ['admin', 'superadmin'];
+  if (!rolesValidos.includes(rol as string)) {
     const error = new Error(
       'Acceso no autorizado. Se requieren permisos de administrador.',
     ) as Error & { status?: number };
@@ -115,6 +116,24 @@ export async function requireAdmin(req: {
   }
 
   return { uid, rol, nombre: claims['nombre'] ?? null };
+}
+
+/**
+ * Como [requireAdmin], pero exige específicamente el rol `superadmin`.
+ * Solo el superadmin puede gestionar usuarios y roles de otros administradores.
+ */
+export async function requireSuperadmin(req: {
+  headers: { authorization?: string | null };
+}): Promise<AdminIdentity> {
+  const identidad = await requireAdmin(req);
+  if (identidad.rol !== 'superadmin') {
+    const error = new Error(
+      'Acceso no autorizado. Se requieren permisos de superadministrador.',
+    ) as Error & { status?: number };
+    error.status = 403;
+    throw error;
+  }
+  return identidad;
 }
 
 /** Extrae el código de estado HTTP de los errores lanzados por requireAdmin. */

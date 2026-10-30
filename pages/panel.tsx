@@ -63,6 +63,14 @@ const MODULOS = [
     borde: 'border-orange-300',
     texto: 'group-hover:text-orange-600',
   },
+  {
+    href: '/panel/usuarios',
+    titulo: '👥 Usuarios y roles',
+    descripcion: 'Superadmin: gestionar admins y cuentas del panel',
+    hover: 'hover:bg-slate-50',
+    borde: 'border-slate-300',
+    texto: 'group-hover:text-slate-600',
+  },
 ];
 
 export default function PanelDashboard() {
@@ -71,6 +79,7 @@ export default function PanelDashboard() {
   const [usuario, setUsuario] = useState<User | null>(null);
   const [resumen, setResumen] = useState<ResumenBanco | null>(null);
   const [versionActiva, setVersionActiva] = useState<string>('');
+  const [esSuperadmin, setEsSuperadmin] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -83,7 +92,9 @@ export default function PanelDashboard() {
         .getIdTokenResult()
         .then((tokenResult) => {
           const claims = tokenResult.claims as Record<string, unknown>;
-          if (claims['rol'] !== 'admin') {
+          const rol = claims['rol'] as string;
+          setEsSuperadmin(rol === 'superadmin');
+          if (rol !== 'admin' && rol !== 'superadmin') {
             signOut(auth).finally(() => {
               void router.replace('/auth/login');
             });
@@ -177,7 +188,7 @@ export default function PanelDashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {MODULOS.map((modulo) => (
+        {MODULOS.filter((m) => m.href !== '/panel/usuarios' || esSuperadmin).map((modulo) => (
           <a
             key={modulo.href}
             href={modulo.href}
