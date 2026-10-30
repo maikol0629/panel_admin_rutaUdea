@@ -151,8 +151,20 @@ export default function QuestionsList() {
         const response = await fetch(`/api/questions?${params.toString()}`, {
           headers: { Authorization: `Bearer ${idToken}` },
         });
+
+        const contentType = response.headers.get('content-type') ?? '';
+        if (!response.ok || !contentType.includes('application/json')) {
+          const texto = await response.text().catch(() => '');
+          const preview = texto.slice(0, 200).replace(/\n/g, ' ');
+          throw new Error(
+            `Error ${response.status} al cargar preguntas${
+              preview ? ': ' + preview : ''
+            }`,
+          );
+        }
+
         const data = (await response.json()) as ListadoResponse;
-        if (!response.ok || !data.success || !data.preguntas) {
+        if (!data.success || !data.preguntas) {
           throw new Error(data.error ?? 'Error al cargar preguntas');
         }
         setPreguntas(data.preguntas);
