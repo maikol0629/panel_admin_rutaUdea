@@ -29,7 +29,7 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "^9.39.5",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/react": "^16.0.0",
     "@types/bun": "^1.1.7",
@@ -47,5 +47,10 @@
     "typescript-eslint": "^8.72.1",
     "vite": "^7.3.7",
     "vitest": "^5.0.3"
+  },
+  "overrides": {
+    "@firebase/firestore": {
+      "@grpc/grpc-js": "1.14.7"
+    }
   }
 }

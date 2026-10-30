@@ -162,10 +162,10 @@ existentes; debe incorporarse junto con ese entorno, no contra Firestore real.
   El build ya no muestra el aviso `SecurityFatalError`.
 - React 18 está deprecado en Next 16: el build emite un aviso y seguirá
   funcionando hasta Next 17. La actualización a React 19 queda para Fase 8.
-- `npm audit` reporta 4 vulnerabilidades `high` transitivas en
-  `@grpc/grpc-js` (dependencia de `@firebase/firestore`). **No ejecutes
-  `npm audit fix --force`**: propone `firebase@9.14.0`, que rompe el build
-  SSR (`Component auth has not been registered yet`).
+- `npm audit` queda sin vulnerabilidades conocidas gracias al override de
+  `@grpc/grpc-js` definido en `package.json`. Mantén el lockfile actualizado y
+  evita `npm audit fix --force`, que puede proponer downgrades incompatibles de
+  Firebase.
 - `npm run lint` no funciona: `next lint` fue eliminado en Next 16 y el
   proyecto no tiene ESLint configurado. Usar `npx tsc --noEmit` mientras se
   define la configuración.
