@@ -2,8 +2,9 @@
 const nextConfig = {
   reactStrictMode: false,
   pageExtensions: ['ts', 'tsx', 'js', 'jsx'],
-  // Si necesitas omitir ESLint durante el build en Next.js 16+, se hace vía CLI
-  // o configurando la propiedad typescript si aplica, eliminando la clave no soportada.
+  // Externalizar módulos ESM (jose) que jwks-rsa (CJS) intenta require() en el
+  // runtime serverless de Vercel/AWS Lambda. Evita ERR_REQUIRE_ESM.
+  serverExternalPackages: ['firebase-admin', 'jose', 'jwks-rsa', 'google-auth-library'],
 };
 
 export default nextConfig;
