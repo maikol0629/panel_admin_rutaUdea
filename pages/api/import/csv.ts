@@ -10,7 +10,10 @@
  * opcion_d,respuesta_correcta,explicacion,tiene_contexto_compartido,
  * descripcion_contexto
  *
- * Las preguntas válidas se insertan con estado "pendiente".
+ * Fase 7: escribe en `questions_v2` con el contrato v2 (opciones como
+ * objeto `{A,B,C,D}`, taxonomía RL01–RL18 / CL01–CL14, `bank_version` y
+ * `schema_version`). Toda fila entra como `pendiente` y sin verificar
+ * (D-08); el CSV no puede publicar preguntas.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -20,6 +23,12 @@ import {
   getAdminDb,
   requireAdmin,
 } from '@/lib/firebase-admin';
+import {
+  BANK_VERSION_DEFAULT,
+  SCHEMA_VERSION,
+  esComponenteValido,
+  type OpcionesPregunta,
+} from '@/lib/bank';
 
 export const config = {
   api: { bodyParser: false },
@@ -31,10 +40,7 @@ interface FilaCSV {
   subtema: string;
   dificultad: string;
   pregunta: string;
-  opcion_a: string;
-  opcion_b: string;
-  opcion_c: string;
-  opcion_d: string;
+  opciones: OpcionesPregunta;
   respuesta_correcta: string;
   explicacion: string;
   tiene_contexto_compartido: string;
@@ -66,13 +72,6 @@ const ENCABEZADOS_OBLIGATORIOS = [
 const DIFICULTADES_VALIDAS = ['baja', 'media', 'alta'] as const;
 const RESPUESTAS_VALIDAS = ['A', 'B', 'C', 'D'] as const;
 
-const COMPONENTES_VALIDOS = [
-  'RL01', 'RL02', 'RL03', 'RL04', 'RL05', 'RL06', 'RL07', 'RL08',
-  'RL09', 'RL10', 'RL11', 'RL12', 'RL13', 'RL14', 'RL15',
-  'CL01', 'CL02', 'CL03', 'CL04', 'CL05', 'CL06', 'CL07',
-  'CL08', 'CL09', 'CL10', 'CL11', 'CL12', 'CL13', 'CL14',
-] as const;
-
 function esRespuestaValida(resp: string): resp is 'A' | 'B' | 'C' | 'D' {
   return (RESPUESTAS_VALIDAS as readonly string[]).includes(resp);
 }
@@ -81,13 +80,7 @@ function esDificultadValida(dif: string): dif is 'baja' | 'media' | 'alta' {
   return (DIFICULTADES_VALIDAS as readonly string[]).includes(dif);
 }
 
-function esComponenteValido(
-  comp: string,
-): comp is (typeof COMPONENTES_VALIDOS)[number] {
-  return (COMPONENTES_VALIDOS as readonly string[]).includes(comp);
-}
-
-async function leerCuerpo(req: NextApiRequest): Promise<Buffer> {
+async function leerBuffer(req: NextApiRequest): Promise<Buffer> {
   const partes: Buffer[] = [];
   for await (const parte of req) {
     partes.push(typeof parte === 'string' ? Buffer.from(parte) : (parte as Buffer));
@@ -111,11 +104,55 @@ function extraerMultipart(
     const finCabecera = parte.indexOf('\r\n\r\n');
     if (finCabecera === -1) continue;
     const cabeceras = parte.slice(0, finCabecera);
-    let contenido = parte.slice(finCabecera + 4).replace(/\r\n$/, '');
+    const contenido = parte.slice(finCabecera + 4).replace(/\r\n$/, '');
     const nombre = cabeceras.match(/filename="([^"]*)"/)?.[1] ?? 'upload.csv';
     return { filename: nombre, content: contenido };
   }
   return null;
+}
+
+/**
+ * Parser CSV mínimo compatible con RFC 4180: soporta campos entre comillas
+ * con comas, comillas escapadas ("") y saltos de línea internos.
+ */
+export function parsearCSV(texto: string): string[][] {
+  const filas: string[][] = [];
+  let fila: string[] = [];
+  let campo = '';
+  let entreComillas = false;
+
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto[i];
+    if (entreComillas) {
+      if (c === '"') {
+        if (texto[i + 1] === '"') {
+          campo += '"';
+          i++;
+        } else {
+          entreComillas = false;
+        }
+      } else {
+        campo += c;
+      }
+    } else if (c === '"') {
+      entreComillas = true;
+    } else if (c === ',') {
+      fila.push(campo);
+      campo = '';
+    } else if (c === '\n') {
+      fila.push(campo);
+      filas.push(fila);
+      fila = [];
+      campo = '';
+    } else if (c !== '\r') {
+      campo += c;
+    }
+  }
+  if (campo.length > 0 || fila.length > 0) {
+    fila.push(campo);
+    filas.push(fila);
+  }
+  return filas.filter((f) => f.some((v) => v.trim().length > 0));
 }
 
 function validarFila(
@@ -138,7 +175,8 @@ function validarFila(
   const componente = (fila['componente'] ?? '').trim();
   if (!esComponenteValido(componente)) {
     errores.push(
-      `Componente inválido: "${componente}". Debe ser uno de: ${COMPONENTES_VALIDOS.join(', ')}`,
+      `Componente inválido: "${componente}". Debe ser uno de la taxonomía oficial ` +
+        'RL01–RL18 / CL01–CL14.',
     );
   }
 
@@ -156,8 +194,14 @@ function validarFila(
     );
   }
 
+  const opciones: OpcionesPregunta = {
+    A: (fila['opcion_a'] ?? '').trim(),
+    B: (fila['opcion_b'] ?? '').trim(),
+    C: (fila['opcion_c'] ?? '').trim(),
+    D: (fila['opcion_d'] ?? '').trim(),
+  };
   const opcionesVacias = (['A', 'B', 'C', 'D'] as const).filter(
-    (opt) => !((fila[`opcion_${opt.toLowerCase()}`] ?? '').trim()),
+    (letra) => !opciones[letra],
   );
   if (opcionesVacias.length > 0) {
     errores.push(
@@ -182,10 +226,7 @@ function validarFila(
       subtema: (fila['subtema'] ?? '').trim(),
       dificultad,
       pregunta: (fila['pregunta'] ?? '').trim(),
-      opcion_a: (fila['opcion_a'] ?? '').trim(),
-      opcion_b: (fila['opcion_b'] ?? '').trim(),
-      opcion_c: (fila['opcion_c'] ?? '').trim(),
-      opcion_d: (fila['opcion_d'] ?? '').trim(),
+      opciones,
       respuesta_correcta: respuesta,
       explicacion: (fila['explicacion'] ?? '').trim(),
       tiene_contexto_compartido: (fila['tiene_contexto_compartido'] ?? '').trim(),
@@ -214,7 +255,7 @@ export default async function handler(
 
   try {
     const contentType = req.headers['content-type'];
-    const buffer = await leerCuerpo(req);
+    const buffer = await leerBuffer(req);
 
     // Acepta multipart (campo `file`) o JSON { filename, content }.
     let filename = 'upload.csv';
@@ -243,21 +284,18 @@ export default async function handler(
         error: 'No se recibió ningún archivo. Campo esperado: "file"',
       });
     }
-    if (!filename.endsWith('.csv')) {
-      return res.status(400).json({
-        error: 'El archivo debe tener extensión .csv',
-      });
+    if (!filename.toLowerCase().endsWith('.csv')) {
+      return res.status(400).json({ error: 'El archivo debe tener extensión .csv' });
     }
 
-    const lineas = texto.split('\n').filter((l) => l.trim().length > 0);
-    if (lineas.length < 2) {
+    const filas = parsearCSV(texto);
+    if (filas.length < 2) {
       return res.status(400).json({
         error: 'El archivo CSV parece estar vacío o solo tiene encabezados.',
       });
     }
 
-    const primera = lineas[0] ?? '';
-    const encabezadoCSV = primera.split(',').map((h) => h.trim());
+    const encabezadoCSV = (filas[0] ?? []).map((h) => h.trim());
     const faltantes = ENCABEZADOS_OBLIGATORIOS.filter(
       (h) => !encabezadoCSV.includes(h),
     );
@@ -277,9 +315,8 @@ export default async function handler(
     let preguntasValidas = 0;
     let preguntasInvalidas = 0;
 
-    for (let i = 1; i < lineas.length; i++) {
-      const linea = lineas[i] ?? '';
-      const valores = linea.split(',');
+    for (let i = 1; i < filas.length; i++) {
+      const valores = filas[i] ?? [];
       const fila: Record<string, string> = {};
       for (let j = 0; j < ENCABEZADOS_OBLIGATORIOS.length; j++) {
         const clave = ENCABEZADOS_OBLIGATORIOS[j];
@@ -302,34 +339,49 @@ export default async function handler(
         // El área se deriva del componente (el CSV no la trae): CL* →
         // competencia_lectora, lo demás → razonamiento_logico. Sin área
         // válida la app móvil nunca seleccionaría la pregunta.
-        const area = preg.componente.startsWith('CL')
-          ? 'competencia_lectora'
-          : 'razonamiento_logico';
-        await getAdminDb().collection(COLECCION_QUESTIONS).doc(preg.id).set({
-          id: preg.id,
-          area,
-          componente: preg.componente,
-          subtema: preg.subtema,
-          competencia: '',
-          tipo_texto: '',
-          dificultad: preg.dificultad,
-          contexto: preg.descripcion_contexto,
-          pregunta: preg.pregunta,
-          // Firestore guarda lista [A, B, C, D] (así la lee la app móvil).
-          opciones: [preg.opcion_a, preg.opcion_b, preg.opcion_c, preg.opcion_d],
-          respuesta_correcta: preg.respuesta_correcta,
-          explicacion: preg.explicacion,
-          fuente: '',
-          tipo_fuente: '',
-          es_original: false,
-          verificada: false,
-          duplicado: false,
-          estado: 'pendiente',
-          metadatos: {
-            fechaImportacion: new Date().toISOString(),
-            importadoPor: 'admin-panel-csv',
+        const esLectura = preg.componente.startsWith('CL');
+        const area = esLectura ? 'competencia_lectora' : 'razonamiento_logico';
+        const ahora = new Date().toISOString();
+        await getAdminDb().collection(COLECCION_QUESTIONS).doc(preg.id).set(
+          {
+            id: preg.id,
+            bank_version: BANK_VERSION_DEFAULT,
+            schema_version: SCHEMA_VERSION,
+            area,
+            componente: esLectura ? 'Competencia Lectora' : 'Razonamiento Lógico',
+            subtema: `${preg.componente} ${preg.subtema}`.trim(),
+            subtema_origen: preg.subtema,
+            competencia: '',
+            tipo_texto: esLectura ? '' : null,
+            dificultad: preg.dificultad,
+            contexto: preg.descripcion_contexto || null,
+            texto_base: null,
+            pregunta: preg.pregunta,
+            // Contrato v2: objeto {A,B,C,D}, no lista.
+            opciones: preg.opciones,
+            respuesta_correcta: preg.respuesta_correcta,
+            explicacion: preg.explicacion,
+            fuente: '',
+            tipo_fuente: '',
+            es_original: false,
+            verificada: false,
+            duplicado: false,
+            imagen_url: null,
+            imagenes: [],
+            requiere_imagen: false,
+            opciones_en_imagen: false,
+            // Toda importación CSV entra pendiente de revisión (D-08).
+            estado: 'pendiente',
+            created_at: ahora,
+            updated_at: ahora,
+            metadatos: {
+              fechaImportacion: ahora,
+              importadoPor: 'admin-panel-csv',
+              tiene_contexto_compartido: preg.tiene_contexto_compartido,
+            },
           },
-        });
+          { merge: true },
+        );
         preguntasInsertadas++;
       } catch (err) {
         console.error(`Error insertando pregunta ${preg.id}:`, err);
@@ -338,9 +390,9 @@ export default async function handler(
 
     return res.status(200).json({
       success: true,
-      mensaje: `Importación completada: ${preguntasValidas} válidas, ${preguntasInvalidas} inválidas, ${preguntasInsertadas} insertadas en Firestore con estado "pendiente".`,
+      mensaje: `Importación completada: ${preguntasValidas} válidas, ${preguntasInvalidas} inválidas, ${preguntasInsertadas} insertadas en questions_v2 con estado "pendiente".`,
       resultado: {
-        totalFilas: lineas.length - 1,
+        totalFilas: filas.length - 1,
         preguntasValidas,
         preguntasInvalidas,
         preguntasInsertadas,

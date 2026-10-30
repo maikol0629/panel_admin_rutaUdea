@@ -56,9 +56,14 @@ export function getAdminAuth(): AdminAuth {
   return getAuth(getAdminApp());
 }
 
-// Nombres de colecciones Firestore (contrato con la app móvil rutaUdea).
+// Nombres de colecciones Firestore (contrato v2 con la app móvil rutaUdea).
 export const COLECCION_USERS = 'users';
-export const COLECCION_QUESTIONS = 'questions';
+/** Banco legacy (congelado para rollback, solo lectura en el panel). */
+export const COLECCION_QUESTIONS_LEGACY = 'questions';
+/** Colección canónica del contrato v2 (Fase 6). */
+export const COLECCION_QUESTIONS = 'questions_v2';
+export const COLECCION_CONTEXTS = 'contexts_v2';
+export const COLECCION_BANK_MANIFEST = 'bank_manifest';
 export const COLECCION_SETTINGS = 'settings';
 
 export interface AdminIdentity {

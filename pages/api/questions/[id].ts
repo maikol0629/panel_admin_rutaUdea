@@ -1,29 +1,36 @@
 /**
  * /api/questions/[id]
  *
- * GET    — Obtener una pregunta por ID.
- * PUT    — Actualizar campos (merge con lista blanca). Si el estado
- *          resultante es "aprobado", exige pregunta completa: enunciado,
- *          4 opciones y respuesta A–D. Los estados "pendiente" y
- *          "deshabilitado" admiten registros incompletos (borradores).
- * DELETE — Borrado lógico: cambia el estado a "deshabilitado".
- *          Nunca se elimina físicamente para proteger el banco.
+ * GET    — Pregunta normalizada del banco v2 (o legacy con `?banco=legacy`,
+ *          solo lectura).
+ * PUT    — Actualiza campos con lista blanca o ejecuta una acción de
+ *          revisión (`aprobar`, `pendiente`, `rechazar`, `cuarentena`).
+ * DELETE — Borrado lógico con motivo obligatorio (nunca borra el documento).
+ *
+ * Reglas de la Fase 7:
+ * - La edición nunca borra campos desconocidos: solo se escriben las claves
+ *   enviadas (`set(..., { merge: true })`).
+ * - Aprobar exige contrato completo (taxonomía, opciones, respuesta,
+ *   verificación e imágenes con URL) y firma `revisado_por` + fecha.
+ * - El banco legacy `questions` no se puede modificar desde el panel.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import {
   adminErrorStatus,
   COLECCION_QUESTIONS,
+  COLECCION_QUESTIONS_LEGACY,
   getAdminDb,
   requireAdmin,
+  type AdminIdentity,
 } from '@/lib/firebase-admin';
-
-const ESTADOS = ['aprobado', 'pendiente', 'deshabilitado'] as const;
-type Estado = (typeof ESTADOS)[number];
-
-function esEstado(v: unknown): v is Estado {
-  return v === 'aprobado' || v === 'pendiente' || v === 'deshabilitado';
-}
+import {
+  faltantesParaPublicar,
+  normalizarImagenes,
+  normalizarOpciones,
+  normalizarPregunta,
+  type PreguntaV2,
+} from '@/lib/bank';
 
 function getId(req: NextApiRequest): string {
   const v = req.query['id'];
@@ -31,94 +38,105 @@ function getId(req: NextApiRequest): string {
   return v ?? '';
 }
 
-function asString(v: unknown): string {
-  return typeof v === 'string' ? v : '';
+function bancoDeQuery(req: NextApiRequest): 'v2' | 'legacy' {
+  const v = req.query['banco'];
+  const raw = Array.isArray(v) ? v[0] : v;
+  return raw === 'legacy' ? 'legacy' : 'v2';
 }
 
-function normalizarOpciones(raw: unknown): {
-  A: string;
-  B: string;
-  C: string;
-  D: string;
-} {
-  const vacias = { A: '', B: '', C: '', D: '' };
-  if (Array.isArray(raw)) {
-    const letras = ['A', 'B', 'C', 'D'] as const;
-    for (let i = 0; i < 4; i++) {
-      const letra = letras[i];
-      if (letra) vacias[letra] = asString(raw[i]);
-    }
-    return vacias;
-  }
-  if (typeof raw === 'object' && raw !== null) {
-    const o = raw as Record<string, unknown>;
-    return {
-      A: asString(o['A']),
-      B: asString(o['B']),
-      C: asString(o['C']),
-      D: asString(o['D']),
-    };
-  }
-  return vacias;
+function leerCuerpo(req: NextApiRequest): Record<string, unknown> {
+  return typeof req.body === 'string'
+    ? (JSON.parse(req.body) as Record<string, unknown>)
+    : ((req.body ?? {}) as Record<string, unknown>);
 }
 
-/** Shape de UI para las respuestas de este endpoint. */
-function aRespuesta(id: string, data: Record<string, unknown>) {
-  return { id, ...data, opciones: normalizarOpciones(data['opciones']) };
+function asString(v: unknown, fallback = ''): string {
+  return typeof v === 'string' ? v : fallback;
 }
 
-/** Campos que faltan para poder marcar la pregunta como aprobada. */
-function faltantesParaAprobar(doc: Record<string, unknown>): string[] {
-  const faltantes: string[] = [];
-  if (!asString(doc['pregunta']).trim()) faltantes.push('pregunta');
-  const o = normalizarOpciones(doc['opciones']);
-  const letras = ['A', 'B', 'C', 'D'] as const;
-  for (const l of letras) {
-    if (!o[l].trim()) faltantes.push(`opcion_${l.toLowerCase()}`);
-  }
-  const resp = asString(doc['respuesta_correcta']).trim().toUpperCase();
-  if (!['A', 'B', 'C', 'D'].includes(resp)) {
-    faltantes.push('respuesta_correcta');
-  }
-  return faltantes;
+function coleccionDe(banco: 'v2' | 'legacy'): string {
+  return banco === 'legacy' ? COLECCION_QUESTIONS_LEGACY : COLECCION_QUESTIONS;
 }
 
 async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   const id = getId(req);
   if (!id) return res.status(400).json({ error: 'ID requerido' });
+  const banco = bancoDeQuery(req);
 
-  const snap = await getAdminDb().collection(COLECCION_QUESTIONS).doc(id).get();
+  const snap = await getAdminDb().collection(coleccionDe(banco)).doc(id).get();
   if (!snap.exists) {
     return res.status(404).json({ error: 'Pregunta no encontrada' });
   }
+  const pregunta = normalizarPregunta(
+    snap.id,
+    snap.data() as Record<string, unknown>,
+  );
   return res.status(200).json({
     success: true,
-    pregunta: aRespuesta(snap.id, snap.data() as Record<string, unknown>),
+    banco,
+    soloLectura: banco === 'legacy',
+    pregunta,
   });
 }
 
+/** Campos editables del contrato v2 (lista blanca). */
 const CAMPOS_EDITABLES = [
   'area',
+  'componente',
   'subtema',
+  'subtema_origen',
   'dificultad',
+  'tipo',
+  'tarea',
+  'numero',
   'pregunta',
   'opciones',
   'respuesta_correcta',
   'explicacion',
-  'competencia',
-  'contexto',
   'texto_base',
-  'tipo_texto',
+  'contexto',
+  'contexto_ids',
   'fuente',
   'tipo_fuente',
-  'es_original',
+  'imagen_url',
+  'imagenes',
+  'requiere_imagen',
+  'opciones_en_imagen',
   'verificada',
-  'estado',
+  'confianza_modelo',
+  'modelo_extraccion',
+  'revisado_por',
+  'fecha_revision',
+  'notas',
+  'duplicado',
+  'metadatos',
 ] as const;
 
-async function handlePut(req: NextApiRequest, res: NextApiResponse) {
+function limpiarTexto(valor: unknown): string | null {
+  if (typeof valor !== 'string') return null;
+  const limpio = valor.trim();
+  return limpio ? limpio : null;
+}
+
+function combinarNotas(actuales: unknown, motivo: string): string {
+  const previas = asString(actuales).trim();
+  const firma = `[panel ${new Date().toISOString()}] ${motivo}`;
+  return previas ? `${previas} | ${firma}` : firma;
+}
+
+async function handlePut(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  identidad: AdminIdentity,
+) {
   const id = getId(req);
   if (!id) return res.status(400).json({ error: 'ID requerido' });
+  if (bancoDeQuery(req) === 'legacy') {
+    return res.status(403).json({
+      error:
+        'El banco legacy está congelado y es solo lectura. Use questions_v2.',
+    });
+  }
 
   const ref = getAdminDb().collection(COLECCION_QUESTIONS).doc(id);
   const snap = await ref.get();
@@ -126,13 +144,36 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse) {
     return res.status(404).json({ error: 'Pregunta no encontrada' });
   }
 
-  const body =
-    typeof req.body === 'string'
-      ? (JSON.parse(req.body) as Record<string, unknown>)
-      : (req.body as Record<string, unknown>);
-
-  const actual = { ...(snap.data() as Record<string, unknown>) };
+  const body = leerCuerpo(req);
+  const actual = (snap.data() ?? {}) as Record<string, unknown>;
   const cambios: Record<string, unknown> = {};
+  let accion = asString(body['accion']).toLowerCase();
+  // Una acción explícita (botón Aprobar/Deshabilitar) implica que la persona
+  // firma la revisión; el formulario, en cambio, envía `verificada` y no debe
+  // forzarse.
+  const accionExplicita = Boolean(accion);
+  const ahora = new Date().toISOString();
+
+  // Desde el formulario el estado llega como campo, no como acción. Se
+  // traduce a la acción equivalente para no saltarse las validaciones, pero
+  // solo si el estado cambia: guardar otros campos de una pregunta ya
+  // deshabilitada no debe exigir un motivo nuevo.
+  const estadoSolicitado = asString(body['estado']).toLowerCase();
+  const estadoActual = asString(actual['estado'], 'pendiente').toLowerCase();
+  if (!accion && estadoSolicitado && estadoSolicitado !== estadoActual) {
+    if (estadoSolicitado === 'aprobado' || estadoSolicitado === 'aprobado_con_imagen') {
+      accion = 'aprobar';
+    } else if (estadoSolicitado === 'pendiente') {
+      accion = 'pendiente';
+    } else if (estadoSolicitado === 'deshabilitado') {
+      accion = 'deshabilitar';
+    } else {
+      return res.status(400).json({ error: `Estado desconocido: ${estadoSolicitado}` });
+    }
+  }
+  const revisor = limpiarTexto(body['revisado_por']) ??
+    limpiarTexto(identidad.nombre) ??
+    'admin-panel';
 
   for (const campo of CAMPOS_EDITABLES) {
     if (!(campo in body)) continue;
@@ -142,9 +183,14 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse) {
         if (typeof valor !== 'object' || valor === null) {
           return res.status(400).json({ error: 'opciones debe ser un objeto' });
         }
-        const o = normalizarOpciones(valor);
-        // Firestore guarda lista [A, B, C, D] (así la lee la app móvil).
-        cambios['opciones'] = [o.A, o.B, o.C, o.D];
+        cambios['opciones'] = normalizarOpciones(valor);
+        break;
+      }
+      case 'imagenes': {
+        if (!Array.isArray(valor)) {
+          return res.status(400).json({ error: 'imagenes debe ser una lista' });
+        }
+        cambios['imagenes'] = normalizarImagenes(valor);
         break;
       }
       case 'respuesta_correcta': {
@@ -164,18 +210,30 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse) {
         cambios['dificultad'] = valor.trim().toLowerCase();
         break;
       }
-      case 'es_original':
-      case 'verificada': {
+      case 'numero': {
+        cambios['numero'] = typeof valor === 'number' ? valor : null;
+        break;
+      }
+      case 'verificada':
+      case 'requiere_imagen':
+      case 'opciones_en_imagen':
+      case 'duplicado': {
         cambios[campo] = valor === true;
         break;
       }
-      case 'estado': {
-        if (!esEstado(valor)) {
-          return res.status(400).json({
-            error: 'estado debe ser aprobado, pendiente o deshabilitado',
-          });
-        }
-        cambios['estado'] = valor;
+      case 'contexto_ids': {
+        cambios['contexto_ids'] = Array.isArray(valor)
+          ? valor.filter((x): x is string => typeof x === 'string' && x.length > 0)
+          : [];
+        break;
+      }
+      case 'metadatos': {
+        cambios['metadatos'] = {
+          ...((actual['metadatos'] as Record<string, unknown> | undefined) ?? {}),
+          ...(typeof valor === 'object' && valor !== null
+            ? (valor as Record<string, unknown>)
+            : {}),
+        };
         break;
       }
       default: {
@@ -184,37 +242,98 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse) {
     }
   }
 
-  const resultante = { ...actual, ...cambios };
-  const estadoFinal = resultante['estado'];
-  if (estadoFinal === 'aprobado') {
-    const faltantes = faltantesParaAprobar(resultante);
-    if (faltantes.length > 0) {
-      return res.status(400).json({
-        error: `No se puede aprobar: faltan ${faltantes.join(', ')}`,
-        faltantes,
-      });
+  // Acciones explícitas de revisión (cola del panel).
+  if (accion) {
+    const motivo = limpiarTexto(body['motivo']);
+    if (accion === 'aprobar') {
+      cambios['estado'] =
+        body['estado'] === 'aprobado_con_imagen' ? 'aprobado_con_imagen' : 'aprobado';
+      if (accionExplicita) cambios['verificada'] = true;
+      cambios['revisado_por'] = revisor;
+      cambios['fecha_revision'] = ahora;
+    } else if (accion === 'pendiente') {
+      cambios['estado'] = 'pendiente';
+      cambios['revisado_por'] = revisor;
+      cambios['fecha_revision'] = ahora;
+    } else if (
+      accion === 'rechazar' ||
+      accion === 'cuarentena' ||
+      accion === 'deshabilitar'
+    ) {
+      if (!motivo) {
+        return res.status(400).json({
+          error:
+            'El motivo es obligatorio para rechazar, poner en cuarentena o deshabilitar.',
+        });
+      }
+      cambios['estado'] = 'deshabilitado';
+      cambios['notas'] = combinarNotas(actual['notas'], motivo);
+      cambios['revisado_por'] = revisor;
+      cambios['fecha_revision'] = ahora;
+    } else {
+      return res.status(400).json({ error: `Acción desconocida: ${accion}` });
     }
   }
 
+  const resultante = { ...actual, ...cambios };
+  const estadoFinal = asString(resultante['estado']);
+  if (estadoFinal === 'aprobado' || estadoFinal === 'aprobado_con_imagen') {
+    const validada = normalizarPregunta(id, resultante);
+    const faltantes = faltantesParaPublicar({ ...validada, estado: estadoFinal });
+    if (faltantes.length > 0) {
+      return res.status(400).json({
+        error: `No se puede publicar: faltan ${faltantes.join(', ')}`,
+        faltantes,
+      });
+    }
+    // La promoción automática refleja si la pregunta requiere figura.
+    if (validada.requiere_imagen || validada.imagenes.length > 0) {
+      cambios['estado'] = 'aprobado_con_imagen';
+    } else if (!accion) {
+      cambios['estado'] = 'aprobado';
+    }
+  }
+
+  cambios['updated_at'] = ahora;
   cambios['metadatos'] = {
-    ...((actual['metadatos'] as Record<string, unknown> | undefined) ?? {}),
-    fechaActualizacion: new Date().toISOString(),
-    actualizadoPor: 'admin-panel',
+    ...((resultante['metadatos'] as Record<string, unknown> | undefined) ?? {}),
+    fechaActualizacion: ahora,
+    actualizadoPor: revisor,
   };
 
+  // Merge: las claves no enviadas (incluidas las desconocidas) se conservan.
   await ref.set(cambios, { merge: true });
   const actualizado = await ref.get();
-  const datos = actualizado.data() as Record<string, unknown> | undefined;
+  const datos = (actualizado.data() ?? {}) as Record<string, unknown>;
   return res.status(200).json({
     success: true,
-    mensaje: 'Pregunta actualizada correctamente.',
-    pregunta: aRespuesta(actualizado.id, datos ?? {}),
+    mensaje: accion
+      ? `Acción "${accion}" aplicada.`
+      : 'Pregunta actualizada correctamente.',
+    pregunta: normalizarPregunta(actualizado.id, datos),
   });
 }
 
-async function handleDelete(req: NextApiRequest, res: NextApiResponse) {
+async function handleDelete(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  identidad: AdminIdentity,
+) {
   const id = getId(req);
   if (!id) return res.status(400).json({ error: 'ID requerido' });
+  if (bancoDeQuery(req) === 'legacy') {
+    return res.status(403).json({
+      error: 'El banco legacy está congelado y es solo lectura.',
+    });
+  }
+
+  const body = leerCuerpo(req);
+  const motivo = limpiarTexto(body['motivo']);
+  if (!motivo) {
+    return res.status(400).json({
+      error: 'El motivo es obligatorio para deshabilitar una pregunta.',
+    });
+  }
 
   const ref = getAdminDb().collection(COLECCION_QUESTIONS).doc(id);
   const snap = await ref.get();
@@ -222,23 +341,32 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse) {
     return res.status(404).json({ error: 'Pregunta no encontrada' });
   }
 
+  const actual = (snap.data() ?? {}) as Record<string, unknown>;
+  const ahora = new Date().toISOString();
+  const revisor = limpiarTexto(identidad.nombre) ?? 'admin-panel';
   await ref.set(
     {
       estado: 'deshabilitado',
+      notas: combinarNotas(actual['notas'], motivo),
+      revisado_por: revisor,
+      fecha_revision: ahora,
+      updated_at: ahora,
       metadatos: {
-        ...((snap.data()?.['metadatos'] as Record<string, unknown> | undefined) ?? {}),
-        fechaActualizacion: new Date().toISOString(),
-        actualizadoPor: 'admin-panel',
+        ...((actual['metadatos'] as Record<string, unknown> | undefined) ?? {}),
+        fechaActualizacion: ahora,
+        actualizadoPor: revisor,
       },
     },
     { merge: true },
   );
   const actualizado = await ref.get();
-  const datos = actualizado.data() as Record<string, unknown> | undefined;
   return res.status(200).json({
     success: true,
     mensaje: 'Pregunta deshabilitada (borrado lógico).',
-    pregunta: aRespuesta(actualizado.id, datos ?? {}),
+    pregunta: normalizarPregunta(
+      actualizado.id,
+      (actualizado.data() ?? {}) as Record<string, unknown>,
+    ),
   });
 }
 
@@ -246,8 +374,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
+  let identidad: AdminIdentity;
   try {
-    await requireAdmin(req);
+    identidad = await requireAdmin(req);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Error de autenticación';
@@ -256,14 +385,13 @@ export default async function handler(
 
   try {
     if (req.method === 'GET') return await handleGet(req, res);
-    if (req.method === 'PUT') return await handlePut(req, res);
-    if (req.method === 'DELETE') return await handleDelete(req, res);
+    if (req.method === 'PUT') return await handlePut(req, res, identidad);
+    if (req.method === 'DELETE') return await handleDelete(req, res, identidad);
     res.setHeader('Allow', 'GET, PUT, DELETE');
     return res.status(405).json({ error: 'Método no permitido' });
   } catch (error) {
     console.error('Error en /api/questions/[id]:', error);
-    const message =
-      error instanceof Error ? error.message : 'Error interno';
+    const message = error instanceof Error ? error.message : 'Error interno';
     return res.status(500).json({ error: message });
   }
 }

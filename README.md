@@ -1,159 +1,160 @@
-# panel_admin_rutaUdea
+# Panel Admin RutaUdeA
 
-Panel administrativo web para la aplicación RutaUdeA. Permite a los administradores gestionar el banco de preguntas, cargar contenido, configurar parámetros del simulacro y revisar explicaciones generadas por IA.
+Panel web (Next.js + TypeScript + Firebase Admin) para gestionar el banco de
+preguntas de RutaUdeA. Desde la Fase 7 trabaja con el **contrato v2**
+(`questions_v2`, `contexts_v2`, `bank_manifest`) y deja el banco legacy
+`questions` en **solo lectura** para rollback.
 
-## Propósito
+## Estado
 
-Este panel complementa la aplicación móvil RutaUdeA, proporcionando a los administradores las herramientas necesarias para:
-- Gestionar el banco de preguntas (CRUD completo)
-- Cargar y validar preguntas desde CSV/JSON
-- Filtrar y buscar preguntas por componente, subtema, dificultad y estado
-- Gestionar componentes, subtemas y dificultad del examen
-- Configurar parámetros del simulacro (distribución, tiempo, inactividad)
-- Revisar y aprobar explicaciones asistidas por IA
-- Consultar indicadores de uso y calidad del banco
+- ✅ Autenticación con Firebase Auth y custom claim `rol === 'admin'`.
+- ✅ Listado, detalle, edición y revisión de preguntas v2.
+- ✅ Editor de imágenes con `rol`, `orden`, `alt` y `url` (D-05).
+- ✅ Soporte de `opciones_en_imagen` (D-06) y `requiere_imagen`.
+- ✅ Contextos compartidos (`contexts_v2`) con bloqueo de borrado si están en uso.
+- ✅ Importador JSONL canónico (preguntas y contextos) e importador CSV.
+- ✅ Publicación de `bank_manifest/active` con verificación y confirmación.
+- ✅ Filtros por banco, `bank_version`, área, subtema, dificultad, estado,
+  confianza, tarea, imágenes, opciones en imagen e incompletas.
+- ✅ Build, TypeScript y 25 tests en verde.
 
-## Estado Actual
+## Requisitos
 
-El directorio `panel_admin_rutaUdea` fue creado con un README inicial pero aún no contiene código de implementación. El desarrollo principal de la aplicación móvil (`rutaUdea/`) ya está avanzado con:
+- Node.js 20+.
+- Proyecto Firebase con Firestore y Auth.
+- Una cuenta con custom claim `rol: 'admin'`.
+- Variables de entorno en `.env.local` (ver `.env.example`):
 
-- ✅ Autenticación Firebase (email/contraseña) con roles (aspirante/admin)
-- ✅ Firestore con reglas de seguridad por rol
-- ✅ Banco de 200 preguntas validadas empaquetado en la app
-- ✅ `QuestionRepository.updateBankFromFirestore()` para sincronización
-- ✅ Estructura de datos con `estado` (`aprobado`/`pendiente`/`deshabilitado`)
+```bash
+FIREBASE_PROJECT_ID=...
+FIREBASE_CLIENT_EMAIL=...
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 
-## Plan de Desarrollo del Panel Admin
-
-### Fase 1: Configuración e Infraestructura (P0)
-
-1. **Configurar proyecto web**
-   - Inicializar proyecto Node.js o TypeScript
-   - Configurar Firebase Admin SDK
-   - Configurar Firebase Hosting
-
-2. **Autenticación Admin**
-   - Integrar con Firebase Auth custom claims o email/contraseña
-   - Verificar rol `admin` en el token de usuario
-   - Rutas protegidas solo para admins
-
-3. **Estructura de bases de datos Firestore**
-   - Verificar colección `questions` tiene los campos necesarios
-   - Asegurar colecciones: `components`, `subtopics`, `settings`, `educationalContent`
-
-### Fase 2: Módulos Core (P0)
-
-4. **Vista de Preguntas (CRUD)**
-   - Listado paginado de preguntas con filtros:
-     * Área (RL/CL)
-     * Subtema
-     * Dificultad (baja/media/alta)
-     * Estado (aprobado/pendiente/deshabilitado)
-   - Botones: Ver, Editar, Eliminar, Cambiar estado
-   - Modal/dialogo para edición de pregunta
-
-5. **Carga de CSV/JSON**
-   - Formato esperado basado en CSV existente:
-     `id, componente, subtema, dificultad, pregunta, opcion_a, opcion_b, opcion_c, opcion_d, respuesta_correcta, explicacion, tiene_contexto_compartido, descripcion_contexto`
-   - Validador de encabezados y tipos de datos
-   - Detección de duplicados por `id`
-   - Importación en estado `pendiente` para revisión admin
-
-6. **Gestión de Componentes y Subtemas**
-   - Catálogo de 15 componentes RL + 14 subtemas CL
-   - CRUD de componentes y subtemas
-   - Asignación de orden y descripción
-
-### Fase 3: Funciones Administrativas (P0/P1)
-
-7. **Configuración de Simulacro**
-   - Parámetros de distribución por dificultad
-   - Tiempo máximo (120 min)
-   - Regla de inactividad
-   - Políticas de repetición de preguntas
-
-8. **Contenido Educativo**
-   - Gestión de los 29 componentes (15 RL + 14 CL)
-   - Descripción, estrategia de resolución, errores comunes
-   - Empaquetado como asset offline-first para la app
-
-9. **Indicadores y Reportes**
-   - Total de preguntas por área/dificultad/estado
-   - Distribución del banco
-   - Estadísticas de importación/validación
-   - Última sincronización con app móvil
-
-### Fase 4: Integración y Testing (P1)
-
-10. **Integración con app móvil**
-    - Probar `updateBankFromFirestore()` desde el panel
-    - Verificar sincronización de estados (pendiente/aprobado)
-    - Testing de importación con datos reales
-
-11. **Tests y Validación**
-    - Tests de importación CSV con casos válidos e inválidos
-    - Validación de duplicados y campos obligatorios
-    - Reglas de Firestore bajo diferentes roles
-
-## Requisitos Técnicos
-
-### Backend
-- Node.js + Express o TypeScript
-- Firebase Admin SDK para operaciones de escritura
-- Firebase Auth para autenticación
-- Firestore como base de datos principal
-
-### Frontend
-- React + TypeScript o Vue 3 + TypeScript
-- Firebase Authentication UI
-- Tabla con filtros y pagination (React Table, TanStack Table, o similar)
-- Modales para edición
-
-### Integración con App Móvil
-- Mismo proyecto Firebase
-- Mismo formato de preguntas (JSONL/CSV compatible)
-- Campo `estado` para flujo de aprobación
-- Mismo schema de opciones (A, B, C, D)
-
-## Formato de Datos Esperado
-
-### Pregunta (colección `questions` en Firestore)
-```json
-{
-  "id": "string único",
-  "area": "razonamiento_logico" | "competencia_lectora",
-  "componente": "RL01" | "RL02" | ... | "CL01" | ...,
-  "subtema": "nombre del subtema",
-  "competencia": "nombre de la competencia",
-  "tipo_texto": "solo para CL",
-  "dificultad": "baja" | "media" | "alta",
-  "contexto": "texto de contexto (opcional)",
-  "pregunta": "enunciado",
-  "opciones": ["A", "B", "C", "D"],
-  "respuesta_correcta": "A" | "B" | "C" | "D",
-  "explicacion": "explicación detallada",
-  "fuente": "nombre de la fuente",
-  "tipo_fuente": "oficial|profe_alex|original|otra",
-  "es_original": boolean,
-  "verificada": boolean,
-  "estado": "aprobado" | "pendiente" | "deshabilitado",
-  "metadatos": { ... }
-}
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
 ```
 
-### CSV de Importación
-```
-id,componente,subtema,dificultad,pregunta,opcion_a,opcion_b,opcion_c,opcion_d,respuesta_correcta,explicacion,tiene_contexto_compartido,descripcion_contexto
+> `.env.local` y las claves `*-firebase-adminsdk-*.json` están en `.gitignore`.
+> La service account se usa **solo** en API Routes (`lib/firebase-admin.ts`);
+> nunca se envía al navegador.
+
+## Comandos
+
+```bash
+npm install
+npm run dev        # desarrollo en http://localhost:3000
+npm test           # vitest: 3 archivos, 25 tests
+npx tsc --noEmit   # comprobación de tipos
+npm run build      # build de producción
+npm start          # servir el build
 ```
 
-## Próximos Pasos Inmediatos
+## Rutas
 
-1. Definir tecnología stack (Node/React vs Kotlin Multiplatform web)
-2. Crear repositorio y estructura de carpetas
-3. Implementar autenticación básica con Firebase
-4. Construir CRUD mínimo de preguntas
-5. Probar importación CSV con datos de muestra
+| Ruta | Descripción |
+|---|---|
+| `/auth/login` | Login con email/contraseña; exige claim admin. |
+| `/panel` | Dashboard con cifras reales del banco. |
+| `/panel/preguntas` | Listado y filtros; alterna banco v2 / legacy. |
+| `/panel/preguntas/[id]` | Detalle, imágenes y acciones de revisión. |
+| `/panel/preguntas/[id]/editar` | Formulario v2 (legacy en solo lectura). |
+| `/panel/contextos` | Contextos e imágenes de `contexts_v2`. |
+| `/panel/banco` | Verificación y publicación del manifiesto. |
+| `/panel/importar-csv` | Importador JSONL y CSV. |
+| `/panel/configurar` | Parámetros del simulacro (sin cambios de contrato). |
+| `/panel/reportes` | Reportes existentes. |
+
+## API
+
+| Ruta | Métodos | Notas |
+|---|---|---|
+| `/api/questions` | GET, POST | `?banco=legacy` para el banco congelado; POST crea en `pendiente`. |
+| `/api/questions/[id]` | GET, PUT, DELETE | Edición con lista blanca + `merge`; acciones de revisión y borrado lógico. Legacy devuelve 403 al escribir. |
+| `/api/contexts` | GET, POST | Lista y upsert de `contexts_v2`. |
+| `/api/contexts/[id]` | GET, PUT, DELETE | DELETE bloquea (409) si hay preguntas que referencian el contexto. |
+| `/api/import/jsonl` | POST | `?tipo=preguntas\|contextos`; por defecto `pendiente`/`verificada=false`. |
+| `/api/import/csv` | POST | Parser RFC 4180; escribe en `questions_v2` como `pendiente`. |
+| `/api/bank/manifest` | GET, POST | GET verifica; POST publica con `confirmar: true`. |
+| `/api/auth/login`, `/api/auth/verify` | POST | Verificación del ID token y del claim admin. |
+
+### Flujo de revisión
+
+1. Importar `questions_v2.jsonl` y `contexts_v2.jsonl` desde
+   `/panel/importar-csv` (o crear/editar preguntas).
+2. Revisar en `/panel/preguntas` filtrando por estado/confianza/tarea.
+3. Aprobar (`aprobado`) o aprobar con imagen (`aprobado_con_imagen`). La API
+   valida taxonomía, 4 opciones, respuesta, verificación y URL de imagen.
+4. Rechazar/cuarentena/deshabilitar exige motivo y se registra en `notas`. El
+   motivo solo es obligatorio cuando la pregunta cambia a `deshabilitado`
+   desde otro estado; editar una ya deshabilitada no lo exige de nuevo.
+5. En `/panel/banco`, verificar los motivos y publicar el manifiesto con la
+   casilla de confirmación.
+6. La app sincroniza en su próxima ejecución (D-02).
+
+### Reglas de publicación
+
+Solo se publican preguntas:
+
+- con `estado` `aprobado` o `aprobado_con_imagen`;
+- de la misma `bank_version` que se publica;
+- con área, taxonomía RL01–RL18 / CL01–CL14, dificultad, 4 opciones,
+  respuesta A–D y `verificada: true`;
+- con imagen y URL cuando `requiere_imagen` o el estado es
+  `aprobado_con_imagen`;
+- cuyos `contexto_ids` existan en `contexts_v2`.
+
+El manifiesto incluye `counts.aprobadas` (cantidad que la app descarga),
+`counts.total`, `hash`, `published_at/by`, `min_app_version`,
+`image_base_url`, `previous` e historial por versión.
+
+## Contrato de datos
+
+La fuente única es `lib/bank.ts`:
+
+- `opciones` como objeto `{ A, B, C, D }` (se aceptan listas legacy al leer).
+- `imagenes`: `{ url, rol: 'contexto'|'pregunta', orden, alt, path_origen, sha256 }`.
+- Estados: `aprobado`, `aprobado_con_imagen`, `pendiente`, `deshabilitado`.
+- Áreas: `razonamiento_logico`, `competencia_lectora`.
+- Campos de revisión: `verificada`, `confianza_modelo`, `revisado_por`,
+  `fecha_revision`, `notas`, `tarea`, `numero`, `metadatos`.
+
+## Tests
+
+`__tests__/` cubre:
+
+- `bank.test.ts`: normalización, opciones objeto/lista, imágenes con rol,
+  taxonomía oficial, faltantes para publicar, validación de lote y resumen.
+- `import-jsonl.test.ts`: importación de preguntas/contextos con Firebase Admin
+  mockeado, modo `respetar_estado`, filas inválidas y duplicados.
+- `manifest.test.ts`: hash estable del lote y parser CSV RFC 4180.
+
+La autenticación y las escrituras reales en Firestore no se ejercitan en estos
+tests (requieren staging y credenciales).
+
+## Salvedades
+
+- El banco legacy `questions` se conserva congelado: el panel lo muestra en
+  solo lectura y la app ya no lo usa.
+- La primera publicación real de `bank_manifest/active` y las pruebas E2E
+  contra Firestore staging quedan para Fase 8.
+- Next.js quedó en `16.4.3` (parche de seguridad) con `firebase@13.1.0`.
+  El build ya no muestra el aviso `SecurityFatalError`.
+- React 18 está deprecado en Next 16: el build emite un aviso y seguirá
+  funcionando hasta Next 17. La actualización a React 19 queda para Fase 8.
+- `npm audit` reporta 4 vulnerabilidades `high` transitivas en
+  `@grpc/grpc-js` (dependencia de `@firebase/firestore`). **No ejecutes
+  `npm audit fix --force`**: propone `firebase@9.14.0`, que rompe el build
+  SSR (`Component auth has not been registered yet`).
+- `npm run lint` no funciona: `next lint` fue eliminado en Next 16 y el
+  proyecto no tiene ESLint configurado. Usar `npx tsc --noEmit` mientras se
+  define la configuración.
+- `tailwind.config.js` usa CommonJS dentro de un paquete ESM; genera un warning
+  de Turbopack, no bloquea el build.
 
 ---
 
-*Documento de trabajo — Panel Admin RutaUdeA. Actualícese conforme avance el desarrollo.*
+*Última actualización: 2026-10-27 — Fase 7 del plan de migración del banco UdeA.*

@@ -1,17 +1,19 @@
 /**
- * Página /panel/preguntas/[id] — Detalle de una pregunta.
+ * Página /panel/preguntas/[id] — Detalle de una pregunta (contrato v2).
  *
- * Muestra todos los campos, permite cambiar el estado
- * (aprobar / pendiente / deshabilitar) y enlaza a la edición.
+ * Muestra todos los campos relevantes: estado, versión, taxonomía,
+ * contexto, imágenes con rol y metadatos de revisión. Permite aprobar,
+ * devolver a pendiente, rechazar/cuarentena (con motivo) y deshabilitar
+ * (borrado lógico). El banco legacy se muestra en solo lectura.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAdminUser } from '@/hooks/useAdminUser';
-
-type Doc = Record<string, unknown>;
+import { normalizarPregunta, type ImagenRef, type PreguntaV2 } from '@/lib/bank';
+import AdminLayout from '@/components/layout/AdminLayout';
 
 function str(v: unknown): string {
   return typeof v === 'string' ? v : '';
@@ -27,13 +29,31 @@ function Campo({ titulo, valor }: { titulo: string; valor: string }) {
   );
 }
 
+function claseEstado(estado: string): string {
+  switch (estado) {
+    case 'aprobado':
+      return 'bg-green-100 text-green-700';
+    case 'aprobado_con_imagen':
+      return 'bg-emerald-100 text-emerald-700';
+    case 'pendiente':
+      return 'bg-yellow-100 text-yellow-700';
+    case 'deshabilitado':
+      return 'bg-red-100 text-red-700';
+    default:
+      return 'bg-gray-100 text-gray-700';
+  }
+}
+
 export default function PreguntaDetallePage() {
   const router = useRouter();
-  const { id } = router.query;
+  const { id, banco } = router.query;
   const preguntaId = Array.isArray(id) ? (id[0] ?? '') : (id ?? '');
+  const bancoParam = (Array.isArray(banco) ? banco[0] : banco) === 'legacy'
+    ? 'legacy'
+    : 'v2';
   const { idToken } = useAdminUser();
   const [usuario, setUsuario] = useState<User | null>(null);
-  const [doc, setDoc] = useState<Doc | null>(null);
+  const [pregunta, setPregunta] = useState<PreguntaV2 | null>(null);
   const [cargando, setCargando] = useState(true);
   const [accionando, setAccionando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,30 +75,36 @@ export default function PreguntaDetallePage() {
     setCargando(true);
     setError(null);
     try {
-      const res = await fetch(`/api/questions/${encodeURIComponent(preguntaId)}`, {
-        headers: { Authorization: `Bearer ${idToken}` },
-      });
+      const params = bancoParam === 'legacy' ? '?banco=legacy' : '';
+      const res = await fetch(
+        `/api/questions/${encodeURIComponent(preguntaId)}${params}`,
+        { headers: { Authorization: `Bearer ${idToken}` } },
+      );
       const data = (await res.json()) as {
         success?: boolean;
-        pregunta?: Doc;
+        pregunta?: Record<string, unknown>;
         error?: string;
       };
       if (!res.ok || !data.success || !data.pregunta) {
         throw new Error(data.error ?? 'No se pudo cargar la pregunta');
       }
-      setDoc(data.pregunta);
+      setPregunta(normalizarPregunta(preguntaId, data.pregunta));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado');
     } finally {
       setCargando(false);
     }
-  }, [idToken, preguntaId]);
+  }, [idToken, preguntaId, bancoParam]);
 
   useEffect(() => {
     void cargar();
   }, [cargar]);
 
-  const cambiarEstado = async (estado: string) => {
+  const ejecutarAccion = async (
+    accion: 'aprobar' | 'pendiente' | 'rechazar' | 'cuarentena' | 'deshabilitar',
+    motivo?: string,
+    estadoFinal?: 'aprobado' | 'aprobado_con_imagen',
+  ) => {
     if (!idToken || !preguntaId) return;
     setAccionando(true);
     setError(null);
@@ -90,23 +116,22 @@ export default function PreguntaDetallePage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ estado }),
+        body: JSON.stringify({ accion, motivo, estado: estadoFinal }),
       });
       const data = (await res.json()) as {
         success?: boolean;
-        pregunta?: Doc;
+        pregunta?: Record<string, unknown>;
         error?: string;
         faltantes?: string[];
       };
       if (!res.ok || !data.success || !data.pregunta) {
-        throw new Error(
-          data.faltantes
-            ? `${data.error ?? 'No se pudo cambiar el estado'}`
-            : (data.error ?? 'No se pudo cambiar el estado'),
-        );
+        const detalle = data.faltantes?.length
+          ? ` Faltan: ${data.faltantes.join(', ')}`
+          : '';
+        throw new Error(`${data.error ?? 'No se pudo aplicar la acción'}${detalle}`);
       }
-      setDoc(data.pregunta);
-      setAviso(`Estado cambiado a "${estado}".`);
+      setPregunta(normalizarPregunta(preguntaId, data.pregunta));
+      setAviso(`Acción "${accion}" aplicada.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado');
     } finally {
@@ -114,71 +139,42 @@ export default function PreguntaDetallePage() {
     }
   };
 
-  const deshabilitar = async () => {
-    if (!idToken || !preguntaId) return;
-    if (!window.confirm('¿Deshabilitar esta pregunta? Dejará de sincronizarse a la app.')) {
-      return;
-    }
-    setAccionando(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/questions/${encodeURIComponent(preguntaId)}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${idToken}` },
-      });
-      const data = (await res.json()) as {
-        success?: boolean;
-        pregunta?: Doc;
-        error?: string;
-      };
-      if (!res.ok || !data.success || !data.pregunta) {
-        throw new Error(data.error ?? 'No se pudo deshabilitar');
-      }
-      setDoc(data.pregunta);
-      setAviso('Pregunta deshabilitada.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error inesperado');
-    } finally {
-      setAccionando(false);
-    }
+  const aprobar = (conImagen: boolean) => {
+    void ejecutarAccion(
+      'aprobar',
+      undefined,
+      conImagen ? 'aprobado_con_imagen' : 'aprobado',
+    );
   };
 
-  const cerrarSesion = () => {
-    signOut(auth).finally(() => {
-      void router.replace('/auth/login');
-    });
+  const rechazar = () => {
+    const motivo = window.prompt(
+      'Motivo del rechazo (obligatorio, queda en las notas):',
+    );
+    if (!motivo?.trim()) return;
+    void ejecutarAccion('rechazar', motivo.trim());
   };
 
-  const estado = str(doc?.['estado']) || 'pendiente';
-  const opciones = (doc?.['opciones'] as Record<string, unknown> | undefined) ?? {};
+  const deshabilitar = () => {
+    const motivo = window.prompt(
+      'Motivo para deshabilitar (obligatorio, queda en las notas):',
+    );
+    if (!motivo?.trim()) return;
+    void ejecutarAccion('deshabilitar', motivo.trim());
+  };
+
+  const estado = pregunta?.estado ?? 'pendiente';
+  const esLegacy = bancoParam === 'legacy';
+  const imagenes: ImagenRef[] = pregunta?.imagenes ?? [];
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <a href="/panel/preguntas" className="text-sm text-blue-600 hover:underline">
-              ← Preguntas
-            </a>
-            <h2 className="text-xl font-semibold text-gray-900 font-mono">
-              {preguntaId || '…'}
-            </h2>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">
-              {usuario?.displayName ?? usuario?.email ?? 'Admin'}
-            </span>
-            <button
-              onClick={cerrarSesion}
-              className="text-sm text-red-600 hover:underline"
-            >
-              Cerrar sesión
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      <main className="p-6 sm:p-8 max-w-4xl mx-auto">
+    <AdminLayout
+      title={preguntaId || 'Detalle de pregunta'}
+      subtitle={esLegacy ? 'Banco legacy · solo lectura' : 'Detalle y revisión'}
+      user={usuario}
+      backHref="/panel/preguntas"
+      maxWidth="4xl"
+    >
         {cargando && <p className="text-sm text-gray-500">Cargando pregunta…</p>}
 
         {error && (
@@ -192,50 +188,105 @@ export default function PreguntaDetallePage() {
           </div>
         )}
 
-        {!cargando && doc && (
+        {!cargando && pregunta && (
           <>
             <div className="bg-white rounded-xl shadow-sm p-6 mb-4">
               <div className="flex flex-wrap items-center gap-2 mb-4">
                 <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700">
-                  {str(doc['area'])}
+                  {pregunta.area}
                 </span>
                 <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">
-                  {str(doc['subtema'])}
+                  {pregunta.subtema}
                 </span>
                 <span className="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">
-                  {str(doc['dificultad'])}
+                  {pregunta.dificultad || 'sin dificultad'}
                 </span>
-                <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">
+                <span className={`text-xs px-2 py-0.5 rounded ${claseEstado(estado)}`}>
                   {estado}
+                </span>
+                {pregunta.opciones_en_imagen && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">
+                    opciones en imagen
+                  </span>
+                )}
+                {pregunta.verificada && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-green-50 text-green-700">
+                    verificada
+                  </span>
+                )}
+                <span className="text-xs text-gray-400 font-mono">
+                  {pregunta.bank_version} · schema {pregunta.schema_version}
                 </span>
                 <span className="ml-auto">
                   <a
-                    href={`/panel/preguntas/${encodeURIComponent(preguntaId)}/editar`}
+                    href={`/panel/preguntas/${encodeURIComponent(preguntaId)}/editar${
+                      esLegacy ? '?banco=legacy' : ''
+                    }`}
                     className="text-sm text-blue-600 hover:underline font-medium"
                   >
-                    Editar →
+                    {esLegacy ? 'Consultar →' : 'Editar →'}
                   </a>
                 </span>
               </div>
 
+              {pregunta.contexto && (
+                <div className="mb-4 p-3 bg-slate-50 rounded text-sm text-gray-700 whitespace-pre-wrap">
+                  {pregunta.contexto}
+                </div>
+              )}
+
               <h1 className="text-lg font-semibold text-gray-900 whitespace-pre-wrap">
-                {str(doc['pregunta'])}
+                {pregunta.pregunta}
               </h1>
 
+              {imagenes.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  {imagenes.map((img, indice) => (
+                    <div key={`${img.rol}-${indice}`}>
+                      <p className="text-xs text-gray-500 mb-1">
+                        Imagen de {img.rol} {img.orden}
+                        {img.alt ? ` · ${img.alt}` : ''}
+                      </p>
+                      {img.url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={img.url}
+                          alt={img.alt ?? `Imagen de ${img.rol}`}
+                          className="max-h-80 rounded border border-gray-200"
+                        />
+                      ) : (
+                        <p className="text-xs text-red-600">
+                          Imagen sin URL publicada.
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {pregunta.imagen_url && imagenes.length === 0 && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={pregunta.imagen_url}
+                  alt="Imagen de la pregunta"
+                  className="mt-4 max-h-80 rounded border border-gray-200"
+                />
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-                {(['A', 'B', 'C', 'D'] as const).map((l) => {
-                  const esCorrecta = str(doc['respuesta_correcta']) === l;
+                {(['A', 'B', 'C', 'D'] as const).map((letra) => {
+                  const esCorrecta = pregunta.respuesta_correcta === letra;
                   return (
                     <div
-                      key={l}
+                      key={letra}
                       className={`p-2 rounded border text-sm ${
                         esCorrecta
                           ? 'border-green-500 bg-green-50 font-medium'
                           : 'border-gray-200'
                       }`}
                     >
-                      <span className="font-mono font-bold mr-2">{l}.</span>
-                      {str(opciones[l])}
+                      <span className="font-mono font-bold mr-2">{letra}.</span>
+                      {pregunta.opciones[letra]}
                       {esCorrecta && (
                         <span className="ml-2 text-xs text-green-700">✓ correcta</span>
                       )}
@@ -243,7 +294,7 @@ export default function PreguntaDetallePage() {
                   );
                 })}
               </div>
-              {!str(doc['respuesta_correcta']) && (
+              {!pregunta.respuesta_correcta && (
                 <p className="mt-2 text-sm text-red-600">
                   Sin respuesta definida — no se puede aprobar hasta definirla.
                 </p>
@@ -251,60 +302,81 @@ export default function PreguntaDetallePage() {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
-              <Campo titulo="Explicación" valor={str(doc['explicacion'])} />
-              <Campo titulo="Competencia" valor={str(doc['competencia'])} />
-              <Campo titulo="Contexto" valor={str(doc['contexto'])} />
-              <Campo titulo="Texto base" valor={str(doc['texto_base'])} />
-              <Campo titulo="Tipo de texto" valor={str(doc['tipo_texto'])} />
+              <Campo titulo="Explicación" valor={pregunta.explicacion ?? ''} />
+              <Campo titulo="Texto base" valor={pregunta.texto_base ?? ''} />
+              <Campo
+                titulo="IDs de contexto"
+                valor={(pregunta.contexto_ids ?? []).join(', ')}
+              />
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                <Campo titulo="Fuente" valor={str(doc['fuente'])} />
-                <Campo titulo="Tipo fuente" valor={str(doc['tipo_fuente'])} />
+                <Campo titulo="Fuente" valor={pregunta.fuente ?? ''} />
+                <Campo titulo="Tipo fuente" valor={pregunta.tipo_fuente ?? ''} />
+                <Campo titulo="Tarea" valor={pregunta.tarea ?? ''} />
                 <Campo
-                  titulo="Original"
-                  valor={doc['es_original'] ? 'Sí' : 'No'}
+                  titulo="Número"
+                  valor={pregunta.numero != null ? String(pregunta.numero) : ''}
                 />
                 <Campo
-                  titulo="Verificada"
-                  valor={doc['verificada'] ? 'Sí' : 'No'}
+                  titulo="Confianza modelo"
+                  valor={pregunta.confianza_modelo ?? ''}
                 />
+                <Campo titulo="Revisado por" valor={pregunta.revisado_por ?? ''} />
+                <Campo titulo="Fecha revisión" valor={pregunta.fecha_revision ?? ''} />
+                <Campo titulo="Notas" valor={pregunta.notas ?? ''} />
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm p-6 mt-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">
-                Cambiar estado
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => cambiarEstado('aprobado')}
-                  disabled={accionando || estado === 'aprobado'}
-                  className="py-2 px-4 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-40"
-                >
-                  Aprobar
-                </button>
-                <button
-                  onClick={() => cambiarEstado('pendiente')}
-                  disabled={accionando || estado === 'pendiente'}
-                  className="py-2 px-4 rounded-md text-sm font-medium text-yellow-800 bg-yellow-100 hover:bg-yellow-200 disabled:opacity-40"
-                >
-                  A pendiente
-                </button>
-                <button
-                  onClick={deshabilitar}
-                  disabled={accionando || estado === 'deshabilitado'}
-                  className="py-2 px-4 rounded-md text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 disabled:opacity-40"
-                >
-                  Deshabilitar
-                </button>
+            {!esLegacy && (
+              <div className="bg-white rounded-xl shadow-sm p-6 mt-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">
+                  Revisión
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => aprobar(false)}
+                    disabled={accionando || estado === 'aprobado'}
+                    className="py-2 px-4 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-40"
+                  >
+                    Aprobar
+                  </button>
+                  <button
+                    onClick={() => aprobar(true)}
+                    disabled={accionando || estado === 'aprobado_con_imagen'}
+                    className="py-2 px-4 rounded-md text-sm font-medium text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40"
+                  >
+                    Aprobar con imagen
+                  </button>
+                  <button
+                    onClick={() => ejecutarAccion('pendiente')}
+                    disabled={accionando || estado === 'pendiente'}
+                    className="py-2 px-4 rounded-md text-sm font-medium text-yellow-800 bg-yellow-100 hover:bg-yellow-200 disabled:opacity-40"
+                  >
+                    A pendiente
+                  </button>
+                  <button
+                    onClick={rechazar}
+                    disabled={accionando || estado === 'deshabilitado'}
+                    className="py-2 px-4 rounded-md text-sm font-medium text-orange-800 bg-orange-100 hover:bg-orange-200 disabled:opacity-40"
+                  >
+                    Rechazar…
+                  </button>
+                  <button
+                    onClick={deshabilitar}
+                    disabled={accionando || estado === 'deshabilitado'}
+                    className="py-2 px-4 rounded-md text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 disabled:opacity-40"
+                  >
+                    Deshabilitar…
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  Publicar exige taxonomía, 4 opciones, respuesta, verificación e
+                  imágenes con URL cuando la pregunta las requiera. Rechazar y
+                  deshabilitar piden motivo y se registran en las notas.
+                </p>
               </div>
-              <p className="text-xs text-gray-400 mt-2">
-                Solo las preguntas en estado “aprobado” se sincronizan a la app
-                móvil. Aprobar exige enunciado, 4 opciones y respuesta definida.
-              </p>
-            </div>
+            )}
           </>
         )}
-      </main>
-    </div>
+    </AdminLayout>
   );
 }

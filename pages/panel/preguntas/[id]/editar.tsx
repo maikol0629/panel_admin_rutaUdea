@@ -1,8 +1,8 @@
 /**
- * Página /panel/preguntas/[id]/editar — Edición completa de una pregunta.
+ * Página /panel/preguntas/[id]/editar — Edición de una pregunta v2.
  *
- * Carga el documento, lo normaliza al shape del formulario (tolerando los
- * campos opcionales ausentes del banco real) y guarda vía PUT.
+ * Carga el documento normalizado, lo convierte al shape editable y guarda
+ * vía PUT. Con `?banco=legacy` abre el banco congelado en solo lectura.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -11,52 +11,17 @@ import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAdminUser } from '@/hooks/useAdminUser';
 import QuestionForm from '@/components/questions/QuestionForm';
-import type { PreguntaEditable } from '@/components/questions/types';
-
-function str(v: unknown, fallback = ''): string {
-  return typeof v === 'string' ? v : fallback;
-}
-
-function normalizar(doc: Record<string, unknown>): PreguntaEditable {
-  const opciones = (doc['opciones'] as Record<string, unknown> | undefined) ?? {};
-  const resp = doc['respuesta_correcta'];
-  return {
-    id: str(doc['id']),
-    area: str(doc['area'], 'razonamiento_logico'),
-    subtema: str(doc['subtema']),
-    dificultad: str(doc['dificultad'], 'media'),
-    pregunta: str(doc['pregunta']),
-    opciones: {
-      A: str(opciones['A']),
-      B: str(opciones['B']),
-      C: str(opciones['C']),
-      D: str(opciones['D']),
-    },
-    respuesta_correcta:
-      typeof resp === 'string' && resp.trim() ? resp.trim().toUpperCase() : null,
-    explicacion: str(doc['explicacion']),
-    competencia: str(doc['competencia']) || undefined,
-    contexto: str(doc['contexto']) || undefined,
-    texto_base: str(doc['texto_base']) || undefined,
-    tipo_texto: str(doc['tipo_texto']) || undefined,
-    fuente: str(doc['fuente']) || undefined,
-    tipo_fuente: str(doc['tipo_fuente']) || undefined,
-    es_original: doc['es_original'] === true,
-    verificada: doc['verificada'] === true,
-    duplicado: doc['duplicado'] === true,
-    estado: ((): PreguntaEditable['estado'] => {
-      const e = str(doc['estado']);
-      return e === 'aprobado' || e === 'deshabilitado' ? e : 'pendiente';
-    })(),
-  };
-}
+import { aEditable, type PreguntaEditable } from '@/components/questions/types';
+import { normalizarPregunta } from '@/lib/bank';
+import AdminLayout from '@/components/layout/AdminLayout';
 
 export default function EditarPreguntaPage() {
   const router = useRouter();
-  const { id } = router.query;
+  const { id, banco } = router.query;
   const preguntaId = Array.isArray(id) ? (id[0] ?? '') : (id ?? '');
+  const esLegacy = (Array.isArray(banco) ? banco[0] : banco) === 'legacy';
   const { idToken } = useAdminUser();
-  const [, setUsuario] = useState<User | null>(null);
+  const [usuario, setUsuario] = useState<User | null>(null);
   const [initial, setInitial] = useState<PreguntaEditable | null>(null);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -78,9 +43,11 @@ export default function EditarPreguntaPage() {
     let cancelado = false;
     async function cargar() {
       try {
-        const res = await fetch(`/api/questions/${encodeURIComponent(preguntaId)}`, {
-          headers: { Authorization: `Bearer ${idToken}` },
-        });
+        const params = esLegacy ? '?banco=legacy' : '';
+        const res = await fetch(
+          `/api/questions/${encodeURIComponent(preguntaId)}${params}`,
+          { headers: { Authorization: `Bearer ${idToken}` } },
+        );
         const data = (await res.json()) as {
           success?: boolean;
           pregunta?: Record<string, unknown>;
@@ -90,7 +57,7 @@ export default function EditarPreguntaPage() {
           throw new Error(data.error ?? 'No se pudo cargar la pregunta');
         }
         if (!cancelado) {
-          setInitial(normalizar(data.pregunta));
+          setInitial(aEditable(normalizarPregunta(preguntaId, data.pregunta)));
           setCargando(false);
         }
       } catch (err) {
@@ -104,7 +71,7 @@ export default function EditarPreguntaPage() {
     return () => {
       cancelado = true;
     };
-  }, [idToken, preguntaId]);
+  }, [idToken, preguntaId, esLegacy]);
 
   const guardar = useCallback(
     async (datos: PreguntaEditable) => {
@@ -129,13 +96,14 @@ export default function EditarPreguntaPage() {
           faltantes?: string[];
         };
         if (!res.ok || !data.success) {
-          throw new Error(
-            data.faltantes
-              ? `${data.error ?? 'No se pudo guardar'}`
-              : (data.error ?? 'No se pudo guardar'),
-          );
+          const detalle = data.faltantes?.length
+            ? ` Faltan: ${data.faltantes.join(', ')}`
+            : '';
+          throw new Error(`${data.error ?? 'No se pudo guardar'}${detalle}`);
         }
-        await router.replace(`/panel/preguntas/${encodeURIComponent(preguntaId)}`);
+        await router.replace(
+          `/panel/preguntas/${encodeURIComponent(preguntaId)}`,
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error inesperado');
       } finally {
@@ -146,25 +114,15 @@ export default function EditarPreguntaPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <a
-              href={`/panel/preguntas/${encodeURIComponent(preguntaId)}`}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              ← Detalle
-            </a>
-            <h2 className="text-xl font-semibold text-gray-900">
-              Editar pregunta
-            </h2>
-          </div>
-          <span className="text-sm text-gray-600 font-mono">{preguntaId}</span>
-        </div>
-      </nav>
-
-      <main className="p-6 sm:p-8 max-w-4xl mx-auto">
+    <AdminLayout
+      title={esLegacy ? 'Consultar pregunta' : 'Editar pregunta'}
+      subtitle={esLegacy ? 'Banco legacy · solo lectura' : `ID ${preguntaId}`}
+      user={usuario}
+      backHref={`/panel/preguntas/${encodeURIComponent(preguntaId)}${
+        esLegacy ? '?banco=legacy' : ''
+      }`}
+      maxWidth="4xl"
+    >
         {cargando && <p className="text-sm text-gray-500">Cargando pregunta…</p>}
         {!cargando && error && !initial && (
           <div className="p-3 bg-red-50 rounded border border-red-200 text-red-700 text-sm">
@@ -176,13 +134,17 @@ export default function EditarPreguntaPage() {
             initial={initial}
             saving={guardando}
             serverError={error}
+            soloLectura={esLegacy}
             onSubmit={guardar}
             onCancel={() =>
-              router.push(`/panel/preguntas/${encodeURIComponent(preguntaId)}`)
+              router.push(
+                `/panel/preguntas/${encodeURIComponent(preguntaId)}${
+                  esLegacy ? '?banco=legacy' : ''
+                }`,
+              )
             }
           />
         )}
-      </main>
-    </div>
+    </AdminLayout>
   );
 }
