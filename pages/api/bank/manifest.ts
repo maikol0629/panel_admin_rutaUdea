@@ -103,7 +103,9 @@ function verificarLote(
         motivos.push(`${p.id}:contexto_inexistente:${contextoId}`);
       }
     }
-    const imagenesSinUrl = p.imagenes.filter((img) => !img.url);
+    const imagenesSinUrl = p.imagenes.filter(
+      (img: PreguntaV2['imagenes'][number]) => !img.url,
+    );
     if (imagenesSinUrl.length > 0) {
       motivos.push(`${p.id}:imagen_sin_url`);
     }
@@ -127,7 +129,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   const resumen = resumenBanco(preguntas);
   const { motivos } = verificarLote(deVersion, contextos, versionActiva);
 
-  const imagenes = deVersion.flatMap((p) => p.imagenes);
+  const imagenes = deVersion.flatMap((p: PreguntaV2) => p.imagenes);
   const conUrl = imagenes.filter((img: PreguntaV2['imagenes'][number]) =>
     Boolean(img.url),
   ).length;
@@ -190,7 +192,7 @@ async function handlePost(
   }
 
   const resumen = resumenBanco(deVersion);
-  const imagenes = deVersion.flatMap((p) => p.imagenes);
+  const imagenes = deVersion.flatMap((p: PreguntaV2) => p.imagenes);
   const ahora = new Date().toISOString();
   const hash = calcularHashLote(bankVersion, deVersion);
   const revisor = asString(identidad.nombre) || identidad.uid;
