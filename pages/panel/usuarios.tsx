@@ -4,6 +4,8 @@
  * Permite listar usuarios del panel, asignar rol (admin / superadmin),
  * deshabilitar o reactivar cuentas. Es el punto de entrada para el
  * módulo de superadmin (Fase 9, punto 4).
+ *
+ * Diseño alineado con el resto del panel (contextos, configurar, preguntas).
  */
 
 import { useEffect, useState, useCallback } from 'react';
@@ -23,6 +25,9 @@ interface UsuarioRow {
   proveedor?: string;
 }
 
+const inputClase =
+  'w-full rounded-md border-gray-300 shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
+
 export default function UsuariosPage() {
   const router = useRouter();
   const { idToken } = useAdminUser();
@@ -30,6 +35,7 @@ export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<UsuarioRow[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exito, setExito] = useState<string | null>(null);
   const [guardando, setGuardando] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -59,6 +65,7 @@ export default function UsuariosPage() {
   const cargarUsuarios = useCallback(async () => {
     if (!idToken) return;
     setCargando(true);
+    setError(null);
     try {
       const r = await fetch('/api/usuarios', {
         headers: { Authorization: `Bearer ${idToken}` },
@@ -66,7 +73,6 @@ export default function UsuariosPage() {
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Error al cargar usuarios');
       setUsuarios(data.usuarios ?? []);
-      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error inesperado');
     } finally {
@@ -87,6 +93,7 @@ export default function UsuariosPage() {
     valor: string,
   ) => {
     setGuardando((prev) => new Set([...prev, uid]));
+    setError(null);
     try {
       const r = await fetch('/api/usuarios', {
         method: 'PATCH',
@@ -98,11 +105,12 @@ export default function UsuariosPage() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Error al actualizar');
+      setExito(`Usuario actualizado correctamente.`);
       setUsuarios((prev) =>
         prev.map((u) => (u.uid === uid ? { ...u, [campo]: valor } : u)),
       );
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error al actualizar usuario');
+      setError(e instanceof Error ? e.message : 'Error al actualizar usuario');
     } finally {
       setGuardando((prev) => {
         const siguiente = new Set(prev);
@@ -115,6 +123,7 @@ export default function UsuariosPage() {
   const deshabilitarUsuario = async (uid: string) => {
     if (!confirm('¿Deshabilitar este usuario? No podrá iniciar sesión.')) return;
     setGuardando((prev) => new Set([...prev, uid]));
+    setError(null);
     try {
       const r = await fetch('/api/usuarios', {
         method: 'DELETE',
@@ -126,11 +135,12 @@ export default function UsuariosPage() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Error al deshabilitar');
+      setExito(`Usuario ${data.mensaje ?? 'deshabilitado'}.`);
       setUsuarios((prev) =>
         prev.map((u) => (u.uid === uid ? { ...u, estado: 'deshabilitado' } : u)),
       );
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error al deshabilitar usuario');
+      setError(e instanceof Error ? e.message : 'Error al deshabilitar usuario');
     } finally {
       setGuardando((prev) => {
         const siguiente = new Set(prev);
@@ -147,17 +157,28 @@ export default function UsuariosPage() {
       title="Usuarios y roles"
       subtitle="Gestión de administradores del panel (solo superadmin)"
       user={usuario}
+      backHref="/panel"
       maxWidth="7xl"
     >
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Usuarios y roles</h1>
+      <h1 className="text-3xl font-bold text-slate-900 mb-6">Usuarios y roles</h1>
 
-      {error && <div className="mb-6 p-4 rounded-lg bg-red-50 text-red-700">{error}</div>}
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-md mb-6">
+          {error}
+        </div>
+      )}
+
+      {exito && (
+        <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-md mb-6">
+          {exito}
+        </div>
+      )}
 
       <div className="mb-6 flex items-center gap-2">
         <button
           onClick={cargarUsuarios}
           disabled={cargando}
-          className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
         >
           {cargando ? 'Cargando…' : 'Refrescar'}
         </button>
@@ -179,7 +200,7 @@ export default function UsuariosPage() {
             {usuarios.map((u) => (
               <tr key={u.uid} className="border-b border-slate-100">
                 <td className="px-6 py-3">
-                  <span className="text-slate-900">{u.correo}</span>
+                  <span className="text-slate-900 font-medium">{u.correo}</span>
                 </td>
                 <td className="px-6 py-3">
                   <span className="text-slate-600">{u.nombre ?? '—'}</span>
@@ -189,7 +210,7 @@ export default function UsuariosPage() {
                     value={u.rol}
                     disabled={guardando.has(u.uid)}
                     onChange={(e) => actualizarUsuario(u.uid, 'rol', e.target.value)}
-                    className="px-2 py-1.5 rounded border border-slate-300 text-sm bg-white disabled:opacity-50"
+                    className={inputClase}
                   >
                     {rolOptions.map((r) => (
                       <option key={r} value={r}>
@@ -207,7 +228,7 @@ export default function UsuariosPage() {
                     value={u.estado}
                     disabled={guardando.has(u.uid)}
                     onChange={(e) => actualizarUsuario(u.uid, 'estado', e.target.value)}
-                    className="px-2 py-1.5 rounded border border-slate-300 text-sm bg-white disabled:opacity-50"
+                    className={inputClase}
                   >
                     {estadoOptions.map((e) => (
                       <option key={e} value={e}>
@@ -216,7 +237,9 @@ export default function UsuariosPage() {
                     ))}
                   </select>
                 </td>
-                <td className="px-6 py-3 text-slate-600">{u.proveedor ?? '—'}</td>
+                <td className="px-6 py-3 text-slate-600 font-mono text-xs">
+                  {u.proveedor ?? '—'}
+                </td>
                 <td className="px-6 py-3">
                   {u.uid === (usuario?.uid ?? '') ? (
                     <span className="text-xs text-slate-400">Tu cuenta</span>
@@ -224,7 +247,7 @@ export default function UsuariosPage() {
                     <button
                       onClick={() => deshabilitarUsuario(u.uid)}
                       disabled={guardando.has(u.uid)}
-                      className="px-3 py-1.5 rounded border border-red-300 text-red-600 text-xs font-medium disabled:opacity-50 hover:bg-red-50"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded border border-red-200 text-red-600 text-xs font-medium disabled:opacity-50 hover:bg-red-50 transition-colors"
                     >
                       {u.estado === 'deshabilitado' ? 'Reactivar' : 'Deshabilitar'}
                     </button>
@@ -241,6 +264,25 @@ export default function UsuariosPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+        <h3 className="text-sm font-semibold text-slate-700 mb-3">Acciones rápidas</h3>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={cargarUsuarios}
+            disabled={cargando}
+            className="px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            {cargando ? 'Cargando…' : 'Refrescar lista'}
+          </button>
+          <a
+            href="/panel"
+            className="px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Volver al panel
+          </a>
+        </div>
       </div>
 
       <p className="mt-6 text-xs text-slate-500">
