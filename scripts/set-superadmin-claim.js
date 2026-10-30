@@ -73,16 +73,19 @@ async function main() {
   });
 
   // También crear/actualizar el documento users/{uid} como superadmin.
-  await db.collection('users').doc(usuario.uid).set(
-    {
-      rol: 'superadmin',
-      correo: usuario.email ?? correo,
-      nombre: nombre ?? usuario.displayName ?? null,
-      estado: 'activo',
-      fechaActualizacion: new Date().toISOString(),
-    },
-    { merge: true },
-  );
+  await db
+    .collection('users')
+    .doc(usuario.uid)
+    .set(
+      {
+        rol: 'superadmin',
+        correo: usuario.email ?? correo,
+        nombre: nombre ?? usuario.displayName ?? null,
+        estado: 'activo',
+        fechaActualizacion: new Date().toISOString(),
+      },
+      { merge: true },
+    );
 
   console.log(`OK: ${correo} (uid ${usuario.uid}) ahora tiene rol 'superadmin'.`);
   console.log('El usuario debe cerrar sesión y volver a entrar.');
