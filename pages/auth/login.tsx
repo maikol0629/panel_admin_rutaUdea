@@ -9,11 +9,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useRouter } from 'next/router';
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
-} from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
 export default function LoginPage() {
@@ -52,11 +48,7 @@ export default function LoginPage() {
     setError(null);
     setCargando(true);
     try {
-      const cred = await signInWithEmailAndPassword(
-        auth,
-        correo.trim(),
-        password,
-      );
+      const cred = await signInWithEmailAndPassword(auth, correo.trim(), password);
       const tokenResult = await cred.user.getIdTokenResult(true);
       const claims = tokenResult.claims as Record<string, unknown>;
       if (claims['rol'] !== 'admin') {

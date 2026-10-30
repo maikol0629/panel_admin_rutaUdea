@@ -35,19 +35,18 @@ export default function ReportesPage() {
       user={usuario}
       backHref="/panel"
     >
-        <h1 className="text-3xl font-bold text-slate-900 mb-6">
-          Reportes del Banco de Preguntas
-        </h1>
+      <h1 className="text-3xl font-bold text-slate-900 mb-6">
+        Reportes del Banco de Preguntas
+      </h1>
 
-        <ReportsDashboard />
+      <ReportsDashboard />
 
-        <div className="mt-8 pt-8 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            ¿Necesitas un reporte personalizado? Contacta al equipo de desarrollo o
-            utiliza los filtros en la sección de preguntas para generar análisis
-            específicos.
-          </p>
-        </div>
+      <div className="mt-8 pt-8 border-t border-gray-200">
+        <p className="text-sm text-gray-500">
+          ¿Necesitas un reporte personalizado? Contacta al equipo de desarrollo o utiliza
+          los filtros en la sección de preguntas para generar análisis específicos.
+        </p>
+      </div>
     </AdminLayout>
   );
 }

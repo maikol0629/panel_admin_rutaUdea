@@ -29,7 +29,6 @@ import {
   normalizarImagenes,
   normalizarOpciones,
   normalizarPregunta,
-  type PreguntaV2,
 } from '@/lib/bank';
 
 function getId(req: NextApiRequest): string {
@@ -67,10 +66,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   if (!snap.exists) {
     return res.status(404).json({ error: 'Pregunta no encontrada' });
   }
-  const pregunta = normalizarPregunta(
-    snap.id,
-    snap.data() as Record<string, unknown>,
-  );
+  const pregunta = normalizarPregunta(snap.id, snap.data() as Record<string, unknown>);
   return res.status(200).json({
     success: true,
     banco,
@@ -133,8 +129,7 @@ async function handlePut(
   if (!id) return res.status(400).json({ error: 'ID requerido' });
   if (bancoDeQuery(req) === 'legacy') {
     return res.status(403).json({
-      error:
-        'El banco legacy está congelado y es solo lectura. Use questions_v2.',
+      error: 'El banco legacy está congelado y es solo lectura. Use questions_v2.',
     });
   }
 
@@ -171,9 +166,8 @@ async function handlePut(
       return res.status(400).json({ error: `Estado desconocido: ${estadoSolicitado}` });
     }
   }
-  const revisor = limpiarTexto(body['revisado_por']) ??
-    limpiarTexto(identidad.nombre) ??
-    'admin-panel';
+  const revisor =
+    limpiarTexto(body['revisado_por']) ?? limpiarTexto(identidad.nombre) ?? 'admin-panel';
 
   for (const campo of CAMPOS_EDITABLES) {
     if (!(campo in body)) continue;
@@ -370,16 +364,12 @@ async function handleDelete(
   });
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   let identidad: AdminIdentity;
   try {
     identidad = await requireAdmin(req);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Error de autenticación';
+    const message = error instanceof Error ? error.message : 'Error de autenticación';
     return res.status(adminErrorStatus(error)).json({ error: message });
   }
 

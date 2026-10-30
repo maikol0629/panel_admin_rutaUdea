@@ -116,7 +116,10 @@ describe('banco legacy en solo lectura', () => {
   it('GET legacy se marca como solo lectura', async () => {
     mockDocumento({ id: 'CL-ORG-001', estado: 'aprobado' });
     const res = fakeResponse();
-    await handler(fakeRequest('GET', { id: 'CL-ORG-001', banco: 'legacy' }), res as never);
+    await handler(
+      fakeRequest('GET', { id: 'CL-ORG-001', banco: 'legacy' }),
+      res as never,
+    );
     expect(res.statusCode).toBe(200);
     expect((res.body as { soloLectura: boolean }).soloLectura).toBe(true);
   });
@@ -152,7 +155,10 @@ describe('validación de publicación', () => {
       }),
     );
     const res = fakeResponse();
-    await handler(fakeRequest('PUT', { id: 'T1-P01' }, { accion: 'aprobar' }), res as never);
+    await handler(
+      fakeRequest('PUT', { id: 'T1-P01' }, { accion: 'aprobar' }),
+      res as never,
+    );
     expect(res.statusCode).toBe(400);
     const body = res.body as { faltantes: string[] };
     expect(body.faltantes).toEqual(
@@ -177,7 +183,10 @@ describe('validación de publicación', () => {
     const data = docValido();
     mockDocumento(data);
     const res = fakeResponse();
-    await handler(fakeRequest('PUT', { id: 'T1-P01' }, { accion: 'aprobar' }), res as never);
+    await handler(
+      fakeRequest('PUT', { id: 'T1-P01' }, { accion: 'aprobar' }),
+      res as never,
+    );
     expect(res.statusCode).toBe(200);
     expect(hoisted.set).toHaveBeenCalledTimes(1);
     const [cambios, opciones] = hoisted.set.mock.calls[0] as [

@@ -41,6 +41,7 @@ function respuesta(): Respuesta {
   const res = {
     status: vi.fn(),
     json: vi.fn(),
+    setHeader: vi.fn(),
   };
   res.status.mockReturnValue(res);
   return res;
@@ -48,7 +49,11 @@ function respuesta(): Respuesta {
 
 function request(
   contenido: string,
-  opciones: { query?: Record<string, string>; filename?: string; respetar?: boolean } = {},
+  opciones: {
+    query?: Record<string, string>;
+    filename?: string;
+    respetar?: boolean;
+  } = {},
 ) {
   const cuerpo = JSON.stringify({
     filename: opciones.filename ?? 'lote.jsonl',
@@ -148,10 +153,7 @@ describe('POST /api/import/jsonl — preguntas', () => {
   it('reporta líneas con JSON inválido y duplicados', async () => {
     const res = respuesta();
     const linea = JSON.stringify({ ...base, id: 'T1-P04' });
-    await handler(
-      request(`${linea}\n{ no-json\n${linea}`) as never,
-      res as never,
-    );
+    await handler(request(`${linea}\n{ no-json\n${linea}`) as never, res as never);
     const payload = res.json.mock.calls[0]?.[0] as {
       resultado: { validas: number; invalidas: number; errores: { errores: string[] }[] };
     };
@@ -170,6 +172,33 @@ describe('POST /api/import/jsonl — preguntas', () => {
     );
     expect(res.status).toHaveBeenCalledWith(400);
     expect(mocks.setLote).not.toHaveBeenCalled();
+  });
+
+  it('reporta filas con campos faltantes y contenido vacío', async () => {
+    const res = respuesta();
+    await handler(
+      request(
+        `${JSON.stringify({ id: '', pregunta: '', opciones: [], imagenes: 'no-lista' })}\n\n${JSON.stringify({ id: 'P1', area: 'x' })}`,
+      ) as never,
+      res as never,
+    );
+    const payload = res.json.mock.calls[0]?.[0] as {
+      resultado: { invalidas: number; errores: { errores: string[] }[] };
+    };
+    expect(payload.resultado.invalidas).toBe(2);
+    expect(payload.resultado.errores.flatMap((e) => e.errores).join(' ')).toContain('id');
+
+    const empty = respuesta();
+    await handler(request('') as never, empty as never);
+    expect(empty.status).toHaveBeenCalledWith(400);
+  });
+
+  it('rechaza método no permitido', async () => {
+    const res = respuesta();
+    const req = request(jsonl({ ...base, id: 'P2' })) as never;
+    req.method = 'GET';
+    await handler(req, res as never);
+    expect(res.status).toHaveBeenCalledWith(405);
   });
 });
 
@@ -218,5 +247,26 @@ describe('POST /api/import/jsonl — contextos', () => {
     };
     expect(payload.resultado.invalidas).toBe(1);
     expect(payload.resultado.errores[0]?.errores.join(' ')).toContain('texto');
+  });
+
+  it('valida referencias inválidas y duplicados de contextos', async () => {
+    const res = respuesta();
+    await handler(
+      request(
+        jsonl(
+          { id: 'C1', texto: 'Texto', imagenes: 'no-lista', contexto_ids: ['P1'] },
+          { id: 'C1', texto: 'Duplicado', imagenes: [] },
+        ),
+        { query: { tipo: 'contextos' } },
+      ) as never,
+      res as never,
+    );
+    const payload = res.json.mock.calls[0]?.[0] as {
+      resultado: { invalidas: number; errores: { errores: string[] }[] };
+    };
+    expect(payload.resultado.invalidas).toBe(2);
+    expect(payload.resultado.errores.flatMap((e) => e.errores).join(' ')).toContain(
+      'imagenes',
+    );
   });
 });

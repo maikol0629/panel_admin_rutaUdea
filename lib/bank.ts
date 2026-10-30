@@ -9,10 +9,7 @@
  */
 
 export type EstadoPregunta =
-  | 'aprobado'
-  | 'aprobado_con_imagen'
-  | 'pendiente'
-  | 'deshabilitado';
+  'aprobado' | 'aprobado_con_imagen' | 'pendiente' | 'deshabilitado';
 
 export const ESTADOS: EstadoPregunta[] = [
   'aprobado',
@@ -21,10 +18,7 @@ export const ESTADOS: EstadoPregunta[] = [
   'deshabilitado',
 ];
 
-export const ESTADOS_PUBLICABLES: EstadoPregunta[] = [
-  'aprobado',
-  'aprobado_con_imagen',
-];
+export const ESTADOS_PUBLICABLES: EstadoPregunta[] = ['aprobado', 'aprobado_con_imagen'];
 
 export const DIFICULTADES = ['baja', 'media', 'alta'] as const;
 export const CONFIANZAS = ['alta', 'media', 'baja'] as const;
@@ -91,10 +85,38 @@ export interface PreguntaV2 {
 
 /** Taxonomía oficial (F0-05): RL01–RL18 y CL01–CL14. */
 export const COMPONENTES_VALIDOS = [
-  'RL01', 'RL02', 'RL03', 'RL04', 'RL05', 'RL06', 'RL07', 'RL08', 'RL09',
-  'RL10', 'RL11', 'RL12', 'RL13', 'RL14', 'RL15', 'RL16', 'RL17', 'RL18',
-  'CL01', 'CL02', 'CL03', 'CL04', 'CL05', 'CL06', 'CL07', 'CL08', 'CL09',
-  'CL10', 'CL11', 'CL12', 'CL13', 'CL14',
+  'RL01',
+  'RL02',
+  'RL03',
+  'RL04',
+  'RL05',
+  'RL06',
+  'RL07',
+  'RL08',
+  'RL09',
+  'RL10',
+  'RL11',
+  'RL12',
+  'RL13',
+  'RL14',
+  'RL15',
+  'RL16',
+  'RL17',
+  'RL18',
+  'CL01',
+  'CL02',
+  'CL03',
+  'CL04',
+  'CL05',
+  'CL06',
+  'CL07',
+  'CL08',
+  'CL09',
+  'CL10',
+  'CL11',
+  'CL12',
+  'CL13',
+  'CL14',
 ] as const;
 
 export function prefijoSubtema(subtema: string): string {
@@ -103,9 +125,7 @@ export function prefijoSubtema(subtema: string): string {
 }
 
 export function esComponenteValido(subtema: string): boolean {
-  return (COMPONENTES_VALIDOS as readonly string[]).includes(
-    prefijoSubtema(subtema),
-  );
+  return (COMPONENTES_VALIDOS as readonly string[]).includes(prefijoSubtema(subtema));
 }
 
 export function esRazonamiento(area: string): boolean {
@@ -203,7 +223,9 @@ export function normalizarPregunta(
     id,
     bank_version: asString(data['bank_version'], BANK_VERSION_DEFAULT),
     schema_version:
-      typeof data['schema_version'] === 'number' ? data['schema_version'] : SCHEMA_VERSION,
+      typeof data['schema_version'] === 'number'
+        ? data['schema_version']
+        : SCHEMA_VERSION,
     area: asString(data['area']),
     componente: asString(data['componente']),
     subtema: asString(data['subtema']),

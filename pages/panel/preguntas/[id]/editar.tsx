@@ -79,17 +79,14 @@ export default function EditarPreguntaPage() {
       setGuardando(true);
       setError(null);
       try {
-        const res = await fetch(
-          `/api/questions/${encodeURIComponent(preguntaId)}`,
-          {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${idToken}`,
-            },
-            body: JSON.stringify(datos),
+        const res = await fetch(`/api/questions/${encodeURIComponent(preguntaId)}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
           },
-        );
+          body: JSON.stringify(datos),
+        });
         const data = (await res.json()) as {
           success?: boolean;
           error?: string;
@@ -101,9 +98,7 @@ export default function EditarPreguntaPage() {
             : '';
           throw new Error(`${data.error ?? 'No se pudo guardar'}${detalle}`);
         }
-        await router.replace(
-          `/panel/preguntas/${encodeURIComponent(preguntaId)}`,
-        );
+        await router.replace(`/panel/preguntas/${encodeURIComponent(preguntaId)}`);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error inesperado');
       } finally {
@@ -123,28 +118,28 @@ export default function EditarPreguntaPage() {
       }`}
       maxWidth="4xl"
     >
-        {cargando && <p className="text-sm text-gray-500">Cargando pregunta…</p>}
-        {!cargando && error && !initial && (
-          <div className="p-3 bg-red-50 rounded border border-red-200 text-red-700 text-sm">
-            {error}
-          </div>
-        )}
-        {!cargando && initial && (
-          <QuestionForm
-            initial={initial}
-            saving={guardando}
-            serverError={error}
-            soloLectura={esLegacy}
-            onSubmit={guardar}
-            onCancel={() =>
-              router.push(
-                `/panel/preguntas/${encodeURIComponent(preguntaId)}${
-                  esLegacy ? '?banco=legacy' : ''
-                }`,
-              )
-            }
-          />
-        )}
+      {cargando && <p className="text-sm text-gray-500">Cargando pregunta…</p>}
+      {!cargando && error && !initial && (
+        <div className="p-3 bg-red-50 rounded border border-red-200 text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+      {!cargando && initial && (
+        <QuestionForm
+          initial={initial}
+          saving={guardando}
+          serverError={error}
+          soloLectura={esLegacy}
+          onSubmit={guardar}
+          onCancel={() =>
+            router.push(
+              `/panel/preguntas/${encodeURIComponent(preguntaId)}${
+                esLegacy ? '?banco=legacy' : ''
+              }`,
+            )
+          }
+        />
+      )}
     </AdminLayout>
   );
 }

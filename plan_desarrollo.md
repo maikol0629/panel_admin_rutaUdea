@@ -10,16 +10,16 @@
 
 El panel administrativo provee a los rol `admin` las siguientes funcionalidades mínimas para el MVP:
 
-| Función | Descripción |
-| :--- | :--- |
-| **Autenticación** | Acceso con credenciales Firebase (email/contraseña); verificación de rol `admin` en el token de usuario |
-| **CRUD de preguntas** | Crear, leer, actualizar y eliminar preguntas del banco maestro |
-| **Carga masiva** | Importar preguntas desde formato CSV compatible con el dataset existente |
-| **Filtros y búsqueda** | Filtrar por área (RL/CL), componente (RL01–RL18, CL01–CL14), subtema, dificultad (baja/media/alta), estado (aprobado/pendiente/deshabilitado) |
-| **Gestión de catálogo** | Mantener catálogo de 15 componentes RL + 14 subtemas CL con orden y descripción |
-| **Configuración de simulacro** | Parámetros de distribución, tiempo máximo (120 min), regla de inactividad, políticas de repetición |
-| **Contenido educativo** | Gestionar los 29 componentes (descripción, estrategia, errores comunes) empaquetados como asset offline-first |
-| **Indicadores** | Reportes de distribución del banco, preguntas por estado, última sincronización con app móvil |
+| Función                        | Descripción                                                                                                                                   |
+| :----------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Autenticación**              | Acceso con credenciales Firebase (email/contraseña); verificación de rol `admin` en el token de usuario                                       |
+| **CRUD de preguntas**          | Crear, leer, actualizar y eliminar preguntas del banco maestro                                                                                |
+| **Carga masiva**               | Importar preguntas desde formato CSV compatible con el dataset existente                                                                      |
+| **Filtros y búsqueda**         | Filtrar por área (RL/CL), componente (RL01–RL18, CL01–CL14), subtema, dificultad (baja/media/alta), estado (aprobado/pendiente/deshabilitado) |
+| **Gestión de catálogo**        | Mantener catálogo de 15 componentes RL + 14 subtemas CL con orden y descripción                                                               |
+| **Configuración de simulacro** | Parámetros de distribución, tiempo máximo (120 min), regla de inactividad, políticas de repetición                                            |
+| **Contenido educativo**        | Gestionar los 29 componentes (descripción, estrategia, errores comunes) empaquetados como asset offline-first                                 |
+| **Indicadores**                | Reportes de distribución del banco, preguntas por estado, última sincronización con app móvil                                                 |
 
 ---
 
@@ -30,6 +30,7 @@ El panel administrativo provee a los rol `admin` las siguientes funcionalidades 
 Esta arquitectura usa un solo proyecto que sirve tanto como frontend como backend, eliminando la necesidad de un servidor Express separado. Next.js se despliega en Firebase Hosting o de forma standalone.
 
 ### Características clave
+
 - **API Routes** en `pages/` — Endpoints `POST /api/`, `GET /api/`, etc. sin configuración adicional
 - **Firebase Admin SDK** integrado dentro de las API Routes (mismo proyecto que la app móvil)
 - **React components** en las páginas `pages/` para la interfaz de usuario
@@ -37,6 +38,7 @@ Esta arquitectura usa un solo proyecto que sirve tanto como frontend como backen
 - **Firma de URLs** — Next.js puede servir archivos estáticos y manejar redirecciones de Firebase Hosting
 
 ### Backend (Next.js API Routes)
+
 - **Runtime:** Node.js + TypeScript (entorno Next.js)
 - **Framework:** Next.js 14 con pageRouter
 - **Firebase Admin SDK:** Inicializado en cada API Route con las credenciales del proyecto `rutaUdea/`
@@ -44,6 +46,7 @@ Esta arquitectura usa un solo proyecto que sirve tanto como frontend como backen
 - **Autenticación Firebase Verification** — Middleware o helper en cada route para verificar custom claim `rol === 'admin'`
 
 ### Frontend (React en Next.js pages)
+
 - **Framework:** Next.js 14 + pageRouter
 - **Idioma:** TypeScript completo
 - **UI Library:** TailwindCSS o Material-UI (configurado para Next.js)
@@ -51,14 +54,15 @@ Esta arquitectura usa un solo proyecto que sirve tanto como frontend como backen
 - **Routing:** Navegación entre `/login`, `/panel`, `/preguntas`, `/configurar`, etc.
 
 ### Integración con App Móvil
-| Componente | Mobile App | Admin Panel (Next.js) |
-| :--- | :--- | :--- |
-| **Preguntas** | Room (local) + Firestore (sync) | API Routes `/api/questions` → CRUD en colección `questions` |
-| **Estado** | `aprobado` / `pendiente` / `deshabilitado` | Mismo esquema; las API routes validan el estado antes de operar |
-| **Formato CSV** | `udea_questions.csv` | Mismo formato; procesado en API Routes `/api/import/csv` |
-| **Autenticación** | Firebase Auth con gate obligatorio | Mismo proyecto Firebase; verifyIdToken en cada API Route |
-| **Reglas Firestore** | Ya definidas (`firestore.rules`) | Consolas bajo mismo proyecto; API routes respeta los `isAdmin()` checks |
-| **Despliegue** | APK Android | Firebase Hosting (sitio Next.js) o standalone Node.js |
+
+| Componente           | Mobile App                                 | Admin Panel (Next.js)                                                   |
+| :------------------- | :----------------------------------------- | :---------------------------------------------------------------------- |
+| **Preguntas**        | Room (local) + Firestore (sync)            | API Routes `/api/questions` → CRUD en colección `questions`             |
+| **Estado**           | `aprobado` / `pendiente` / `deshabilitado` | Mismo esquema; las API routes validan el estado antes de operar         |
+| **Formato CSV**      | `udea_questions.csv`                       | Mismo formato; procesado en API Routes `/api/import/csv`                |
+| **Autenticación**    | Firebase Auth con gate obligatorio         | Mismo proyecto Firebase; verifyIdToken en cada API Route                |
+| **Reglas Firestore** | Ya definidas (`firestore.rules`)           | Consolas bajo mismo proyecto; API routes respeta los `isAdmin()` checks |
+| **Despliegue**       | APK Android                                | Firebase Hosting (sitio Next.js) o standalone Node.js                   |
 
 ---
 
@@ -66,16 +70,16 @@ Esta arquitectura usa un solo proyecto que sirve tanto como frontend como backen
 
 Las colecciones ya están definidas en `firestore.rules`. El panel admin escribirá en:
 
-| Colección | Campos principales | Escritura por panel |
-| :--- | :--- | :--- |
-| `users` | `uid`, `nombre`, `correo`, `rol`, `fechaCreacion`, `estado` | Solo en inicialización (no CRUD masivo desde panel) |
-| `questions` | `id`, `area`, `componente`, `subtema`, `competencia`, `tipo_texto`, `dificultad`, `contexto`, `pregunta`, `opciones` [A-D], `respuesta_correcta`, `explicacion`, `fuente`, `tipo_fuente`, `es_original`, `verificada`, `duplicado`, `estado` | **CRUD completo** — crear, editar, cambiar estado `aprobado/pendiente/deshabilitado` |
-| `components` | `id`, `nombre`, `descripcion`, `orden` (15 items: RL01–RL15) | CRUD para mantener catálogo |
-| `subtopics` | `id`, `componentId`, `nombre`, `descripcion`, `orden` (14 items CL + algunos RL) | CRUD por componente |
-| `educationalContent` | `id`, `componentId`/`subtopicId`, `titulo`, `contenido`, `estado` (29 items) | CRUD para descripciones, estrategias, errores comunes |
-| `settings` | `key` (tiempo_simulacro, inactividad_penalizacion, distribucion_preguntas, ...) | Configuración unilateral desde panel admin |
-| `recommendations` | `id`, `userId`, `subtopicId`, `motivo`, `prioridad`, `estado`, `fecha` | Generado por sistema, lectura admin |
-| `simulations` / `simulationQuestions` | Datos de simulacros realizados | Solo lectura (estadísticas de uso) |
+| Colección                             | Campos principales                                                                                                                                                                                                                           | Escritura por panel                                                                  |
+| :------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------- |
+| `users`                               | `uid`, `nombre`, `correo`, `rol`, `fechaCreacion`, `estado`                                                                                                                                                                                  | Solo en inicialización (no CRUD masivo desde panel)                                  |
+| `questions`                           | `id`, `area`, `componente`, `subtema`, `competencia`, `tipo_texto`, `dificultad`, `contexto`, `pregunta`, `opciones` [A-D], `respuesta_correcta`, `explicacion`, `fuente`, `tipo_fuente`, `es_original`, `verificada`, `duplicado`, `estado` | **CRUD completo** — crear, editar, cambiar estado `aprobado/pendiente/deshabilitado` |
+| `components`                          | `id`, `nombre`, `descripcion`, `orden` (15 items: RL01–RL15)                                                                                                                                                                                 | CRUD para mantener catálogo                                                          |
+| `subtopics`                           | `id`, `componentId`, `nombre`, `descripcion`, `orden` (14 items CL + algunos RL)                                                                                                                                                             | CRUD por componente                                                                  |
+| `educationalContent`                  | `id`, `componentId`/`subtopicId`, `titulo`, `contenido`, `estado` (29 items)                                                                                                                                                                 | CRUD para descripciones, estrategias, errores comunes                                |
+| `settings`                            | `key` (tiempo_simulacro, inactividad_penalizacion, distribucion_preguntas, ...)                                                                                                                                                              | Configuración unilateral desde panel admin                                           |
+| `recommendations`                     | `id`, `userId`, `subtopicId`, `motivo`, `prioridad`, `estado`, `fecha`                                                                                                                                                                       | Generado por sistema, lectura admin                                                  |
+| `simulations` / `simulationQuestions` | Datos de simulacros realizados                                                                                                                                                                                                               | Solo lectura (estadísticas de uso)                                                   |
 
 ---
 
@@ -84,64 +88,73 @@ Las colecciones ya están definidas en `firestore.rules`. El panel admin escribi
 Todos los endpoints se definen en el directorio `pages/api/` de Next.js. Las rutas a continuación son equivalentes a `POST /api/auth/login`, etc., y se implementan como archivos `pages/api/auth/login.ts`, `pages/api/questions/[id].ts`, etc.
 
 ### Arquitectura de endpoints
+
 - **Archivo:** `pages/api/archivo.ts` — cada archivo es un endpoint HTTP independiente
 - **Middleware:** Verificación de token Firebase en cada route (opcional: crear un middleware centralizado)
 - **Respuestas:** JSON consistente con `{ success, data, error }` pattern
 - **TypeScript:** Tipado completo de request/response en cada endpoint
 
 ### Autenticación
-| Método | Ruta Next.js | Descripción |
-| :--- | :--- | :--- |
-| `POST` | `pages/api/auth/login.ts` | Login con email/contraseña; verifica credenciales Firebase y custom claim `rol === 'admin'` |
-| `POST` | `pages/api/auth/verify.ts` | Verifica que el usuario actual tiene rol admin decodificando el token ID |
+
+| Método | Ruta Next.js               | Descripción                                                                                 |
+| :----- | :------------------------- | :------------------------------------------------------------------------------------------ |
+| `POST` | `pages/api/auth/login.ts`  | Login con email/contraseña; verifica credenciales Firebase y custom claim `rol === 'admin'` |
+| `POST` | `pages/api/auth/verify.ts` | Verifica que el usuario actual tiene rol admin decodificando el token ID                    |
 
 ### Preguntas
-| Método | Ruta Next.js | Descripción |
-| :--- | :--- | :--- |
-| `GET` | `pages/api/questions.ts` | Listado paginado con filtros query: `?area=RL&subtema=Porcentajes&dificultad=media&estado=aprobado&limit=20&page=1` |
-| `GET` | `pages/api/questions/[id].ts` | Obtener una pregunta por ID (param route) |
-| `POST` | `pages/api/questions.ts` | Crear nueva pregunta (estado por defecto: `pendiente`) |
-| `PUT` | `pages/api/questions/[id].ts` | Actualizar pregunta existente |
-| `DELETE` | `pages/api/questions/[id].ts` | Actualizar estado a `deshabilitado` (soft-delete en lugar de borrado físico) |
+
+| Método   | Ruta Next.js                  | Descripción                                                                                                         |
+| :------- | :---------------------------- | :------------------------------------------------------------------------------------------------------------------ |
+| `GET`    | `pages/api/questions.ts`      | Listado paginado con filtros query: `?area=RL&subtema=Porcentajes&dificultad=media&estado=aprobado&limit=20&page=1` |
+| `GET`    | `pages/api/questions/[id].ts` | Obtener una pregunta por ID (param route)                                                                           |
+| `POST`   | `pages/api/questions.ts`      | Crear nueva pregunta (estado por defecto: `pendiente`)                                                              |
+| `PUT`    | `pages/api/questions/[id].ts` | Actualizar pregunta existente                                                                                       |
+| `DELETE` | `pages/api/questions/[id].ts` | Actualizar estado a `deshabilitado` (soft-delete en lugar de borrado físico)                                        |
 
 ### Importación CSV
-| Método | Ruta Next.js | Descripción |
-| :--- | :--- | :--- |
+
+| Método | Ruta Next.js              | Descripción                                                                                                                                            |
+| :----- | :------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `POST` | `pages/api/import/csv.ts` | Subir archivo CSV (multipart/form-data o base64); validar encabezados, tipos, duplicados; importar en estado `pendiente` y retornar reporte de errores |
 
 ### Catálogo
-| Método | Ruta Next.js | Descripción |
-| :--- | :--- | :--- |
-| `GET` | `pages/api/components.ts` | Listar todos los componentes (15 RL + configuración) |
-| `POST` | `pages/api/components.ts` | Crear nuevo componente |
-| `PUT` | `pages/api/components/[id].ts` | Actualizar componente existente |
-| `GET` | `pages/api/subtopics.ts` | Listar todos los subtemas (relacionados con componentes) |
-| `POST` | `pages/api/subtopics.ts` | Crear nuevo subtema (obligatorio asociar a componente) |
+
+| Método | Ruta Next.js                   | Descripción                                              |
+| :----- | :----------------------------- | :------------------------------------------------------- |
+| `GET`  | `pages/api/components.ts`      | Listar todos los componentes (15 RL + configuración)     |
+| `POST` | `pages/api/components.ts`      | Crear nuevo componente                                   |
+| `PUT`  | `pages/api/components/[id].ts` | Actualizar componente existente                          |
+| `GET`  | `pages/api/subtopics.ts`       | Listar todos los subtemas (relacionados con componentes) |
+| `POST` | `pages/api/subtopics.ts`       | Crear nuevo subtema (obligatorio asociar a componente)   |
 
 ### Configuración
-| Método | Ruta Next.js | Descripción |
-| :--- | :--- | :--- |
-| `GET` | `pages/api/settings.ts` | Obtener todos los parámetros de configuración (tiempo simulacro, inactividad, distribución) |
-| `PUT` | `pages/api/settings.ts` | Actualizar parámetros (tiempo simulacro, inactividad, políticas de repetición) |
+
+| Método | Ruta Next.js            | Descripción                                                                                 |
+| :----- | :---------------------- | :------------------------------------------------------------------------------------------ |
+| `GET`  | `pages/api/settings.ts` | Obtener todos los parámetros de configuración (tiempo simulacro, inactividad, distribución) |
+| `PUT`  | `pages/api/settings.ts` | Actualizar parámetros (tiempo simulacro, inactividad, políticas de repetición)              |
 
 ### Contenido Educativo
-| Método | Ruta Next.js | Descripción |
-| :--- | :--- | :--- |
-| `GET` | `pages/api/educational-content.ts` | Listar contenido por área o todo |
-| `POST` | `pages/api/educational-content.ts` | Crear/actualizar contenido de componente/subtema |
+
+| Método   | Ruta Next.js                            | Descripción                                          |
+| :------- | :-------------------------------------- | :--------------------------------------------------- |
+| `GET`    | `pages/api/educational-content.ts`      | Listar contenido por área o todo                     |
+| `POST`   | `pages/api/educational-content.ts`      | Crear/actualizar contenido de componente/subtema     |
 | `DELETE` | `pages/api/educational-content/[id].ts` | Eliminar contenido (cambiar estado o borrado físico) |
 
 ### Reportes
-| Método | Ruta Next.js | Descripción |
-| :--- | :--- | :--- |
-| `GET` | `pages/api/reports/distribution.ts` | Distribución de preguntas por área, subtema, dificultad, estado (agregación desde Firestore) |
-| `GET` | `pages/api/reports/stats.ts` | Estadísticas generales: total preguntas, por validar, aprobadas, deshabilitadas, última sincronización |
+
+| Método | Ruta Next.js                        | Descripción                                                                                            |
+| :----- | :---------------------------------- | :----------------------------------------------------------------------------------------------------- |
+| `GET`  | `pages/api/reports/distribution.ts` | Distribución de preguntas por área, subtema, dificultad, estado (agregación desde Firestore)           |
+| `GET`  | `pages/api/reports/stats.ts`        | Estadísticas generales: total preguntas, por validar, aprobadas, deshabilitadas, última sincronización |
 
 ---
 
 ## 5. Flujo de Trabajo de Importación
 
 1. Admin sube archivo CSV con formato:
+
    ```
    id,componente,subtema,dificultad,pregunta,opcion_a,opcion_b,opcion_c,opcion_d,respuesta_correcta,explicacion,tiene_contexto_compartido,descripcion_contexto
    ```
@@ -190,14 +203,14 @@ La pregunta está disponible en simulacros y práctica
 
 El panel admin configura parámetros que la app móvil leerá al iniciar un simulacro:
 
-| Parámetro | Valor por defecto | Descripción |
-| :--- | :--- | :--- |
-| `tiempo_simulacro_minutos` | `120` | Duración total del simulacro (120 min = 2 horas) |
-| `pregunta_rl_count` | Derivado del banco | Cuota de preguntas RL por simulacro (40 de 80) |
-| `pregunta_cl_count` | `40` | Cuota de preguntas CL por simulacro (40 de 80) |
-| `inactividad_max_minutos` | `POR_DEFINIR` | Tiempo sin actividad que dispara cierre |
-| `politica_repeticion` | `ultimos_3` | Excluir preguntas de los últimos N simulacros del usuario |
-| `distribucion_dificultad` | `proporcional` | Usar distribución proporcional al banco (mayor residuo) |
+| Parámetro                  | Valor por defecto  | Descripción                                               |
+| :------------------------- | :----------------- | :-------------------------------------------------------- |
+| `tiempo_simulacro_minutos` | `120`              | Duración total del simulacro (120 min = 2 horas)          |
+| `pregunta_rl_count`        | Derivado del banco | Cuota de preguntas RL por simulacro (40 de 80)            |
+| `pregunta_cl_count`        | `40`               | Cuota de preguntas CL por simulacro (40 de 80)            |
+| `inactividad_max_minutos`  | `POR_DEFINIR`      | Tiempo sin actividad que dispara cierre                   |
+| `politica_repeticion`      | `ultimos_3`        | Excluir preguntas de los últimos N simulacros del usuario |
+| `distribucion_dificultad`  | `proporcional`     | Usar distribución proporcional al banco (mayor residuo)   |
 
 Estos valores se guardan en la colección `settings` y la app móvil los leerá al iniciar cada simulacro.
 
@@ -236,6 +249,7 @@ Si no es admin → devuelve 403 o redirige a login de aspirante
 ```
 
 **Opción alternativa (más simple):** Usar Firebase Auth con custom claims.
+
 - Al crear un usuario admin: `admin.setCustomUserClaims({ rol: 'admin' })`
 - El panel verifica `firebase.auth().currentUser.getIdTokenResult()` y valida el claim
 - Las reglas Firestore ya tienen la función `isAdmin()` definida
@@ -244,21 +258,21 @@ Si no es admin → devuelve 403 o redirige a login de aspirante
 
 ## 10. Prioridad y Orden de Implementación
 
-| Prioridad | Funcionalidad | Comentario |
-| :---: | :--- | :--- |
-| **P0** | Autenticación admin y verificación de rol | Base para todas las demás funcionalidades |
-| **P0** | CRUD básico de preguntas (create/read/update/delete) | Funcionalidad central del panel |
-| **P0** | **Carga e validación de CSV** | Importación masiva de preguntas mediante archivo CSV con validación de encabezados, tipos de datos, detección de duplicados y reporte de errores por fila. Implementado en `pages/api/import/csv.ts` con interfaz de usuario en `CsvImportForm.tsx`. |
-| **P0** | Filtros y búsqueda en lista de preguntas | Usabilidad para administrar bancos grandes - Phase 3 implementa filtros avanzados |
-| **P0** | Gestión de componentes y subtemas | Catálogo de 15 RL + 14 CL |
-| **P0** | Configuración de parámetros del simulacro | Phase 4: Endpoints `GET/PUT /api/settings` con validación de distribución de dificultad y políticas de repetición. UI en `pages/panel/configurar.tsx`. |
-| **P0** | **Edición y cambio de estado de preguntas** | Phase 5: Endpoints `GET/PUT/DELETE /api/questions/[id]` (DELETE = borrado lógico). Páginas `/panel/preguntas/[id]` (detalle + cambio de estado) y `/panel/preguntas/[id]/editar` (formulario con campos condicionales por área). Aprobar exige enunciado, 4 opciones y respuesta A–D. |
-| **P1** | **Gestión de contenido educativo (29 componentes)** | Pendiente: contenido offline-first en app móvil (asset `assets/info/contenido_educativo.json`). |
-| **P1** | **Reportes e indicadores del banco** | Phase 4: Panel `ReportsDashboard` en `/panel/reportes` con distribución por área/dificultad, sincronización app y estadísticas generales. |
-| **P0** | **Caza del banco sucio** | Phase 6: filtro `incompletas=true` en `GET /api/questions` (sin enunciado, opciones vacías o sin respuesta A–D) con contador `totalIncompletas` y checkbox "Solo incompletas" en el listado. |
-| **P1** | **Asset limpio para instalaciones nuevas** | Phase 6: `scripts/export-bank-to-jsonl.js` vuelca Firestore al formato exacto de `questions.jsonl` (default: solo `aprobado` completas; omite incompletas con reporte). Dirección única Firestore → asset. |
-| **P2** | Integración con IA para generación de explicaciones | Pendiente: asistente IA que propone explicaciones, admin revisa/approval. |
-| **P2** | **Historial de cambios y auditoría** | Pendiente: colección `auditLogs` en Firestore con registro de quién/hacé/qué/cuándo. |
+| Prioridad | Funcionalidad                                        | Comentario                                                                                                                                                                                                                                                                            |
+| :-------: | :--------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+|  **P0**   | Autenticación admin y verificación de rol            | Base para todas las demás funcionalidades                                                                                                                                                                                                                                             |
+|  **P0**   | CRUD básico de preguntas (create/read/update/delete) | Funcionalidad central del panel                                                                                                                                                                                                                                                       |
+|  **P0**   | **Carga e validación de CSV**                        | Importación masiva de preguntas mediante archivo CSV con validación de encabezados, tipos de datos, detección de duplicados y reporte de errores por fila. Implementado en `pages/api/import/csv.ts` con interfaz de usuario en `CsvImportForm.tsx`.                                  |
+|  **P0**   | Filtros y búsqueda en lista de preguntas             | Usabilidad para administrar bancos grandes - Phase 3 implementa filtros avanzados                                                                                                                                                                                                     |
+|  **P0**   | Gestión de componentes y subtemas                    | Catálogo de 15 RL + 14 CL                                                                                                                                                                                                                                                             |
+|  **P0**   | Configuración de parámetros del simulacro            | Phase 4: Endpoints `GET/PUT /api/settings` con validación de distribución de dificultad y políticas de repetición. UI en `pages/panel/configurar.tsx`.                                                                                                                                |
+|  **P0**   | **Edición y cambio de estado de preguntas**          | Phase 5: Endpoints `GET/PUT/DELETE /api/questions/[id]` (DELETE = borrado lógico). Páginas `/panel/preguntas/[id]` (detalle + cambio de estado) y `/panel/preguntas/[id]/editar` (formulario con campos condicionales por área). Aprobar exige enunciado, 4 opciones y respuesta A–D. |
+|  **P1**   | **Gestión de contenido educativo (29 componentes)**  | Pendiente: contenido offline-first en app móvil (asset `assets/info/contenido_educativo.json`).                                                                                                                                                                                       |
+|  **P1**   | **Reportes e indicadores del banco**                 | Phase 4: Panel `ReportsDashboard` en `/panel/reportes` con distribución por área/dificultad, sincronización app y estadísticas generales.                                                                                                                                             |
+|  **P0**   | **Caza del banco sucio**                             | Phase 6: filtro `incompletas=true` en `GET /api/questions` (sin enunciado, opciones vacías o sin respuesta A–D) con contador `totalIncompletas` y checkbox "Solo incompletas" en el listado.                                                                                          |
+|  **P1**   | **Asset limpio para instalaciones nuevas**           | Phase 6: `scripts/export-bank-to-jsonl.js` vuelca Firestore al formato exacto de `questions.jsonl` (default: solo `aprobado` completas; omite incompletas con reporte). Dirección única Firestore → asset.                                                                            |
+|  **P2**   | Integración con IA para generación de explicaciones  | Pendiente: asistente IA que propone explicaciones, admin revisa/approval.                                                                                                                                                                                                             |
+|  **P2**   | **Historial de cambios y auditoría**                 | Pendiente: colección `auditLogs` en Firestore con registro de quién/hacé/qué/cuándo.                                                                                                                                                                                                  |
 
 ---
 
@@ -275,17 +289,18 @@ Si no es admin → devuelve 403 o redirige a login de aspirante
 5. **Logs de auditoría:** Registrar acciones sensibles (borrar pregunta, cambiar estado de 100+ preguntas, etc.) en Cloud Logging o archivo local. Cada API Route puede escribir en `admin.firestore().collection('auditLogs').add({...})`.
 
 ---
-*Nota:* Las reglas Firestore (`firestore.rules`) ya tienen la función `isAdmin()` definida, pero **es crítico** también verificar el token en el backend de Next.js, ya que las reglas del servidor no impiden que una llamada HTTP maliciosa evite el cliente web. La doble verificación (client + server) es el patrón recomendado.
+
+_Nota:_ Las reglas Firestore (`firestore.rules`) ya tienen la función `isAdmin()` definida, pero **es crítico** también verificar el token en el backend de Next.js, ya que las reglas del servidor no impiden que una llamada HTTP maliciosa evite el cliente web. La doble verificación (client + server) es el patrón recomendado.
 
 ## 12. Riesgos y Mitigaciones
 
-| Riesgo | Impacto | Mitigación |
-| :--- | :--- | :--- |
-| **Banco inconsistente** | Preguntas con datos corruptos entran al sistema | Validación rigorosa en importación; admin revisa antes de aprobar |
-| **Usuario no admin accede al panel** | Filtro en reglas Firestore + verificación en backend | Verificar custom claim `rol === 'admin'` en cada petición |
-| **CSV con formato cambiado** | Importación falla o datos corruptos | Validar encabezados exactos; proporcionar reporte de errores detallado |
-| **Pérdida de datos** | Eliminación accidental de preguntas | Soft-delete (cambiar estado a `deshabilitado`) en lugar de `DELETE` real; backups de Firestore |
-| **Desync con app móvil** | App usa banco viejo después de actualización | `updateBankFromFirestore()` debe ejecutarse después de cambios admin; mostrar versión del banco |
+| Riesgo                               | Impacto                                              | Mitigación                                                                                      |
+| :----------------------------------- | :--------------------------------------------------- | :---------------------------------------------------------------------------------------------- |
+| **Banco inconsistente**              | Preguntas con datos corruptos entran al sistema      | Validación rigorosa en importación; admin revisa antes de aprobar                               |
+| **Usuario no admin accede al panel** | Filtro en reglas Firestore + verificación en backend | Verificar custom claim `rol === 'admin'` en cada petición                                       |
+| **CSV con formato cambiado**         | Importación falla o datos corruptos                  | Validar encabezados exactos; proporcionar reporte de errores detallado                          |
+| **Pérdida de datos**                 | Eliminación accidental de preguntas                  | Soft-delete (cambiar estado a `deshabilitado`) en lugar de `DELETE` real; backups de Firestore  |
+| **Desync con app móvil**             | App usa banco viejo después de actualización         | `updateBankFromFirestore()` debe ejecutarse después de cambios admin; mostrar versión del banco |
 
 ---
 
@@ -302,7 +317,7 @@ Si no es admin → devuelve 403 o redirige a login de aspirante
    - O variables de entorno: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`
    - Inicializar en cada API Route con:
      ```ts
-     import admin from 'firebase-admin'
+     import admin from 'firebase-admin';
      if (!admin.apps.length) {
        admin.initializeApp({
          credential: admin.credential.cert({
@@ -310,7 +325,7 @@ Si no es admin → devuelve 403 o redirige a login de aspirante
            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
          }),
-       })
+       });
      }
      ```
 3. **Crear estructura de páginas** `pages/` organizando los routes:
@@ -347,25 +362,27 @@ Si no es admin → devuelve 403 o redirige a login de aspirante
 **Estado Actual de las Fases:**
 
 ✅ **Phase 1 - Completada:**
+
 - Login admin con verificación de rol `custom claim: rol === 'admin'`
 - CRUD básico: GET/listado paginado con filtros, POST/crear preguntas (estado `pendiente`)
 - Tests unitarios Vitest con cobertura para login, verify y questions endpoints
 - UI: página de login y dashboard panel principal
 
 ✅ **Phase 2 - Completada:**
+
 - Endpoint `POST /api/import/csv` con validación completa:
-  * Encabezados obligatorios (13 columnas esperadas)
-  * Validación de componentes (RL01-RL15, CL01-CL14)
-  * Validación de dificultad (baja/media/alta)
-  * Validación de respuesta correcta (A/B/C/D)
-  * Detección de IDs duplicados dentro del lote
-  * Reporte de errores por fila con motivos específicos
-  * Insertar preguntas válidas en Firestore con estado `pendiente`
+  - Encabezados obligatorios (13 columnas esperadas)
+  - Validación de componentes (RL01-RL15, CL01-CL14)
+  - Validación de dificultad (baja/media/alta)
+  - Validación de respuesta correcta (A/B/C/D)
+  - Detección de IDs duplicados dentro del lote
+  - Reporte de errores por fila con motivos específicos
+  - Insertar preguntas válidas en Firestore con estado `pendiente`
 - Componente UI `CsvImportForm.tsx` con:
-  * Vista previa de filas
-  * Contador de válidas/inválidas
-  * Botón de importar al backend
-  * Manejo de errores y estados loading
+  - Vista previa de filas
+  - Contador de válidas/inválidas
+  - Botón de importar al backend
+  - Manejo de errores y estados loading
 - Página `/panel/importar-csv` con protección de ruta admin
 
 ### Siguiente Fase Recomendada: **Phase 3 - Filtros y Búsqueda Mejorada**
@@ -391,10 +408,11 @@ Después de tener el banco poblable mediante CSV, las siguientes mejoras priorit
 ---
 
 **Opción de despliegue:**
+
 - **Firebase Hosting:** `firebase deploy` — usa el mismo proyecto que `rutaUdea/`, SSL automático, CDN global
 - **Vercel:** Conexión automática desde el repositorio GitHub — deploys en segundos
 - **Node.js standalone:** `next start` en cualquier entorno con Node 18+
 
 ---
 
-*Plan de trabajo — Panel Administrativo RutaUdeA. Versión 1.6 (Next.js + pageRouter + Phase 6) — Oct 2026*
+_Plan de trabajo — Panel Administrativo RutaUdeA. Versión 1.6 (Next.js + pageRouter + Phase 6) — Oct 2026_

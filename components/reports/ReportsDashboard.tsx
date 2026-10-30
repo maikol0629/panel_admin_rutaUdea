@@ -163,17 +163,35 @@ export default function ReportsDashboard() {
   }, [idToken]);
 
   const tarjetas = [
-    { titulo: 'Total Preguntas', valor: totales.total, fondo: 'bg-blue-50', texto: 'text-blue-600' },
-    { titulo: 'Aprobado', valor: totales.aprobado, fondo: 'bg-green-50', texto: 'text-green-600' },
-    { titulo: 'Pendiente', valor: totales.pendiente, fondo: 'bg-yellow-50', texto: 'text-yellow-600' },
-    { titulo: 'Deshabilitado', valor: totales.deshabilitado, fondo: 'bg-red-50', texto: 'text-red-600' },
+    {
+      titulo: 'Total Preguntas',
+      valor: totales.total,
+      fondo: 'bg-blue-50',
+      texto: 'text-blue-600',
+    },
+    {
+      titulo: 'Aprobado',
+      valor: totales.aprobado,
+      fondo: 'bg-green-50',
+      texto: 'text-green-600',
+    },
+    {
+      titulo: 'Pendiente',
+      valor: totales.pendiente,
+      fondo: 'bg-yellow-50',
+      texto: 'text-yellow-600',
+    },
+    {
+      titulo: 'Deshabilitado',
+      valor: totales.deshabilitado,
+      fondo: 'bg-red-50',
+      texto: 'text-red-600',
+    },
   ];
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-      {cargando && (
-        <p className="text-sm text-gray-500 mb-4">Cargando indicadores…</p>
-      )}
+      {cargando && <p className="text-sm text-gray-500 mb-4">Cargando indicadores…</p>}
       {error && (
         <div className="p-3 mb-4 bg-red-50 rounded border border-red-200 text-red-700 text-sm">
           {error}
@@ -190,18 +208,14 @@ export default function ReportsDashboard() {
       </div>
 
       <div className="mb-6">
-        <h3 className="text-lg font-medium text-gray-500 mb-4">
-          Distribución por Área
-        </h3>
+        <h3 className="text-lg font-medium text-gray-500 mb-4">Distribución por Área</h3>
         {areas.length === 0 && (
           <p className="text-sm text-gray-400">Sin datos por área.</p>
         )}
         <div className="space-y-2">
           {areas.map((stat) => {
             const pct =
-              totales.total > 0
-                ? Math.round((stat.total / totales.total) * 100)
-                : 0;
+              totales.total > 0 ? Math.round((stat.total / totales.total) * 100) : 0;
             return (
               <div
                 key={stat.area || 'sin-area'}

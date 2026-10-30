@@ -59,10 +59,35 @@ const ENCABEZADOS_OBLIGATORIOS = [
 ];
 
 const COMPONENTES_VALIDOS = [
-  'RL01', 'RL02', 'RL03', 'RL04', 'RL05', 'RL06', 'RL07', 'RL08',
-  'RL09', 'RL10', 'RL11', 'RL12', 'RL13', 'RL14', 'RL15',
-  'CL01', 'CL02', 'CL03', 'CL04', 'CL05', 'CL06', 'CL07',
-  'CL08', 'CL09', 'CL10', 'CL11', 'CL12', 'CL13', 'CL14',
+  'RL01',
+  'RL02',
+  'RL03',
+  'RL04',
+  'RL05',
+  'RL06',
+  'RL07',
+  'RL08',
+  'RL09',
+  'RL10',
+  'RL11',
+  'RL12',
+  'RL13',
+  'RL14',
+  'RL15',
+  'CL01',
+  'CL02',
+  'CL03',
+  'CL04',
+  'CL05',
+  'CL06',
+  'CL07',
+  'CL08',
+  'CL09',
+  'CL10',
+  'CL11',
+  'CL12',
+  'CL13',
+  'CL14',
 ];
 
 const DIFICULTADES_VALIDAS = ['baja', 'media', 'alta'];
@@ -99,9 +124,7 @@ export default function CsvImportForm() {
       }
       const encabezado = primera.split(',').map((h) => h.trim());
 
-      const faltantes = ENCABEZADOS_OBLIGATORIOS.filter(
-        (h) => !encabezado.includes(h),
-      );
+      const faltantes = ENCABEZADOS_OBLIGATORIOS.filter((h) => !encabezado.includes(h));
 
       if (faltantes.length > 0) {
         setMostrarError(
@@ -156,12 +179,10 @@ export default function CsvImportForm() {
         if (!pregunta) errores.push('Pregunta vacía');
         if (!explicacion) errores.push('Explicación vacía');
 
-        const opciones: OpcionCSV[] = (['A', 'B', 'C', 'D'] as const).map(
-          (letra) => ({
-            letra,
-            valor: (fila[`opcion_${letra.toLowerCase()}`] ?? '').trim(),
-          }),
-        );
+        const opciones: OpcionCSV[] = (['A', 'B', 'C', 'D'] as const).map((letra) => ({
+          letra,
+          valor: (fila[`opcion_${letra.toLowerCase()}`] ?? '').trim(),
+        }));
 
         if (errores.length > 0) {
           invalidas++;
@@ -281,7 +302,6 @@ export default function CsvImportForm() {
     } finally {
       setEsImportando(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preview, archivo, idToken]);
 
   return (
@@ -294,9 +314,7 @@ export default function CsvImportForm() {
           Formato esperado: {ENCABEZADOS_OBLIGATORIOS.join(',')}
         </p>
         {rol !== null && rol !== 'admin' && (
-          <p className="mt-2 text-sm text-red-600">
-            Acceso solo para administradores.
-          </p>
+          <p className="mt-2 text-sm text-red-600">Acceso solo para administradores.</p>
         )}
       </div>
 
@@ -351,9 +369,7 @@ export default function CsvImportForm() {
                       <td className="p-1 text-sm text-gray-500">{fila.subtema}</td>
                       <td className="p-1 text-sm">
                         <span
-                          className={
-                            fila.esValida ? 'text-green-600' : 'text-red-500'
-                          }
+                          className={fila.esValida ? 'text-green-600' : 'text-red-500'}
                         >
                           {fila.dificultad}
                         </span>
@@ -368,9 +384,7 @@ export default function CsvImportForm() {
                       <td className="p-1 text-sm">
                         <span
                           className={
-                            fila.esValida
-                              ? 'text-green-600 font-medium'
-                              : 'text-red-500'
+                            fila.esValida ? 'text-green-600 font-medium' : 'text-red-500'
                           }
                         >
                           {fila.respuestaCorrecta}
@@ -410,9 +424,7 @@ export default function CsvImportForm() {
             disabled={esImportando}
             className="w-full py-3 px-4 rounded-md font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {esImportando
-              ? 'Importando…'
-              : 'Importar a Firestore (estado: pendiente)'}
+            {esImportando ? 'Importando…' : 'Importar a Firestore (estado: pendiente)'}
           </button>
         )}
 
@@ -428,9 +440,7 @@ export default function CsvImportForm() {
 
       {esImportando && (
         <div className="mt-4 p-4 bg-gray-100 rounded border border-gray-300 text-center text-sm">
-          <p>
-            Enviando lote de {estadisticas.validas} preguntas al backend…
-          </p>
+          <p>Enviando lote de {estadisticas.validas} preguntas al backend…</p>
           <span className="text-gray-500">
             Esto puede tardar unos segundos según el tamaño del lote.
           </span>

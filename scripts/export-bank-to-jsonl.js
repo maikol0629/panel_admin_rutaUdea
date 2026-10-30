@@ -67,7 +67,8 @@ function incompleta(doc) {
     if (!esOpcionValida(op[l])) razones.push(`opcion_${l.toLowerCase()} vacía`);
   }
   if (!esRespuestaValida(doc.respuesta_correcta)) razones.push('sin respuesta A–D');
-  if (!str(doc.area).trim()) razones.push('sin area (no la seleccionará ningún simulacro)');
+  if (!str(doc.area).trim())
+    razones.push('sin area (no la seleccionará ningún simulacro)');
   return razones;
 }
 

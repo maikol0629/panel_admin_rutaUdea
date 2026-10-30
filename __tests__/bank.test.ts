@@ -122,7 +122,9 @@ describe('validación para publicar', () => {
 
   it('detecta subtema fuera de taxonomía', () => {
     const p = normalizarPregunta('T1-P01', docValido({ subtema: 'Porcentajes' }));
-    expect(faltantesParaPublicar(p).some((f) => f.startsWith('subtema_taxonomia'))).toBe(true);
+    expect(faltantesParaPublicar(p).some((f) => f.startsWith('subtema_taxonomia'))).toBe(
+      true,
+    );
   });
 
   it('valida el lote completo y reporta versión distinta', () => {
@@ -141,10 +143,7 @@ describe('validación para publicar', () => {
   });
 
   it('rechaza un lote sin aprobadas', () => {
-    const pendiente = normalizarPregunta(
-      'T1-P01',
-      docValido({ estado: 'pendiente' }),
-    );
+    const pendiente = normalizarPregunta('T1-P01', docValido({ estado: 'pendiente' }));
     expect(validarLoteParaPublicar([pendiente], 'udea-2026-10-v1')).toContain(
       'no_hay_preguntas_aprobadas',
     );

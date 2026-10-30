@@ -13,17 +13,16 @@ interface LoginBody {
   idToken?: string;
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
-    const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) as LoginBody;
+    const body = (
+      typeof req.body === 'string' ? JSON.parse(req.body) : req.body
+    ) as LoginBody;
     const idToken = body?.idToken;
     if (!idToken) {
       return res.status(400).json({ error: 'idToken es obligatorio' });
@@ -40,8 +39,7 @@ export default async function handler(
           typeof err === 'object' && err !== null && 'status' in err
             ? (err as { status: number }).status
             : 403;
-        const message =
-          err instanceof Error ? err.message : 'Acceso no autorizado';
+        const message = err instanceof Error ? err.message : 'Acceso no autorizado';
         return res.status(status).json({ error: message });
       }
     }
@@ -66,8 +64,6 @@ export default async function handler(
       return res.status(401).json({ error: 'Credenciales o sesión inválidos' });
     }
     console.error('Error en /api/auth/login:', error);
-    return res
-      .status(500)
-      .json({ error: 'Error interno del servidor' });
+    return res.status(500).json({ error: 'Error interno del servidor' });
   }
 }

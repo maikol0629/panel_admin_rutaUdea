@@ -209,8 +209,8 @@ function validarFila(
     );
   }
 
-  if (!((fila['pregunta'] ?? '').trim())) errores.push('Texto de pregunta vacío');
-  if (!((fila['explicacion'] ?? '').trim())) errores.push('Texto de explicación vacío');
+  if (!(fila['pregunta'] ?? '').trim()) errores.push('Texto de pregunta vacío');
+  if (!(fila['explicacion'] ?? '').trim()) errores.push('Texto de explicación vacío');
 
   if (errores.length > 0) {
     return {
@@ -236,10 +236,7 @@ function validarFila(
   };
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Método no permitido' });
@@ -248,8 +245,7 @@ export default async function handler(
   try {
     await requireAdmin(req);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Error de autenticación';
+    const message = error instanceof Error ? error.message : 'Error de autenticación';
     return res.status(adminErrorStatus(error)).json({ error: message });
   }
 
@@ -296,9 +292,7 @@ export default async function handler(
     }
 
     const encabezadoCSV = (filas[0] ?? []).map((h) => h.trim());
-    const faltantes = ENCABEZADOS_OBLIGATORIOS.filter(
-      (h) => !encabezadoCSV.includes(h),
-    );
+    const faltantes = ENCABEZADOS_OBLIGATORIOS.filter((h) => !encabezadoCSV.includes(h));
     if (faltantes.length > 0) {
       return res.status(400).json({
         error: 'Encabezados CSV inválidos.',
@@ -342,46 +336,49 @@ export default async function handler(
         const esLectura = preg.componente.startsWith('CL');
         const area = esLectura ? 'competencia_lectora' : 'razonamiento_logico';
         const ahora = new Date().toISOString();
-        await getAdminDb().collection(COLECCION_QUESTIONS).doc(preg.id).set(
-          {
-            id: preg.id,
-            bank_version: BANK_VERSION_DEFAULT,
-            schema_version: SCHEMA_VERSION,
-            area,
-            componente: esLectura ? 'Competencia Lectora' : 'Razonamiento Lógico',
-            subtema: `${preg.componente} ${preg.subtema}`.trim(),
-            subtema_origen: preg.subtema,
-            competencia: '',
-            tipo_texto: esLectura ? '' : null,
-            dificultad: preg.dificultad,
-            contexto: preg.descripcion_contexto || null,
-            texto_base: null,
-            pregunta: preg.pregunta,
-            // Contrato v2: objeto {A,B,C,D}, no lista.
-            opciones: preg.opciones,
-            respuesta_correcta: preg.respuesta_correcta,
-            explicacion: preg.explicacion,
-            fuente: '',
-            tipo_fuente: '',
-            es_original: false,
-            verificada: false,
-            duplicado: false,
-            imagen_url: null,
-            imagenes: [],
-            requiere_imagen: false,
-            opciones_en_imagen: false,
-            // Toda importación CSV entra pendiente de revisión (D-08).
-            estado: 'pendiente',
-            created_at: ahora,
-            updated_at: ahora,
-            metadatos: {
-              fechaImportacion: ahora,
-              importadoPor: 'admin-panel-csv',
-              tiene_contexto_compartido: preg.tiene_contexto_compartido,
+        await getAdminDb()
+          .collection(COLECCION_QUESTIONS)
+          .doc(preg.id)
+          .set(
+            {
+              id: preg.id,
+              bank_version: BANK_VERSION_DEFAULT,
+              schema_version: SCHEMA_VERSION,
+              area,
+              componente: esLectura ? 'Competencia Lectora' : 'Razonamiento Lógico',
+              subtema: `${preg.componente} ${preg.subtema}`.trim(),
+              subtema_origen: preg.subtema,
+              competencia: '',
+              tipo_texto: esLectura ? '' : null,
+              dificultad: preg.dificultad,
+              contexto: preg.descripcion_contexto || null,
+              texto_base: null,
+              pregunta: preg.pregunta,
+              // Contrato v2: objeto {A,B,C,D}, no lista.
+              opciones: preg.opciones,
+              respuesta_correcta: preg.respuesta_correcta,
+              explicacion: preg.explicacion,
+              fuente: '',
+              tipo_fuente: '',
+              es_original: false,
+              verificada: false,
+              duplicado: false,
+              imagen_url: null,
+              imagenes: [],
+              requiere_imagen: false,
+              opciones_en_imagen: false,
+              // Toda importación CSV entra pendiente de revisión (D-08).
+              estado: 'pendiente',
+              created_at: ahora,
+              updated_at: ahora,
+              metadatos: {
+                fechaImportacion: ahora,
+                importadoPor: 'admin-panel-csv',
+                tiene_contexto_compartido: preg.tiene_contexto_compartido,
+              },
             },
-          },
-          { merge: true },
-        );
+            { merge: true },
+          );
         preguntasInsertadas++;
       } catch (err) {
         console.error(`Error insertando pregunta ${preg.id}:`, err);
@@ -403,9 +400,7 @@ export default async function handler(
   } catch (error) {
     console.error('Error en /api/import/csv:', error);
     const message =
-      error instanceof Error
-        ? error.message
-        : 'Error interno durante la importación CSV';
+      error instanceof Error ? error.message : 'Error interno durante la importación CSV';
     return res.status(500).json({ error: message });
   }
 }

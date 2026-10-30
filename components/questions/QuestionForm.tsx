@@ -38,10 +38,7 @@ const inputLectura = `${inputClase} bg-gray-100`;
 
 function Etiqueta({ texto, htmlFor }: { texto: string; htmlFor: string }): ReactNode {
   return (
-    <label
-      htmlFor={htmlFor}
-      className="block text-sm font-medium text-gray-700 mb-1"
-    >
+    <label htmlFor={htmlFor} className="block text-sm font-medium text-gray-700 mb-1">
       {texto}
     </label>
   );
@@ -79,9 +76,7 @@ export default function QuestionForm({
     }));
   };
 
-  const onCampoTexto = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
+  const onCampoTexto = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     set(name as keyof PreguntaEditable, value as never);
   };
@@ -156,7 +151,8 @@ export default function QuestionForm({
         setErrorLocal('Para publicar, marque la pregunta como verificada.');
         return;
       }
-      const requiereImagen = datos.requiere_imagen || datos.estado === 'aprobado_con_imagen';
+      const requiereImagen =
+        datos.requiere_imagen || datos.estado === 'aprobado_con_imagen';
       const tieneImagen =
         datos.imagenes.some((i) => i.url && i.url.trim()) || Boolean(datos.imagen_url);
       if (requiereImagen && !tieneImagen) {
@@ -176,10 +172,7 @@ export default function QuestionForm({
   const esRL = esRazonamiento(datos.area);
 
   return (
-    <form
-      onSubmit={enviar}
-      className="bg-white rounded-xl shadow-sm p-6 space-y-5"
-    >
+    <form onSubmit={enviar} className="bg-white rounded-xl shadow-sm p-6 space-y-5">
       {(errorLocal || serverError) && (
         <div className="p-3 bg-red-50 rounded border border-red-200 text-red-700 text-sm">
           {errorLocal ?? serverError}
@@ -251,8 +244,8 @@ export default function QuestionForm({
             ))}
           </select>
           <Ayuda>
-            Publicar exige taxonomía, 4 opciones, respuesta, verificación e
-            imágenes con URL cuando aplique.
+            Publicar exige taxonomía, 4 opciones, respuesta, verificación e imágenes con
+            URL cuando aplique.
           </Ayuda>
         </div>
         <div>
@@ -415,9 +408,7 @@ export default function QuestionForm({
           placeholder="T2-C01, T2-C02"
           disabled={soloLectura}
         />
-        <Ayuda>
-          Deben existir en `contexts_v2` para poder publicar el lote.
-        </Ayuda>
+        <Ayuda>Deben existir en `contexts_v2` para poder publicar el lote.</Ayuda>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -644,8 +635,8 @@ export default function QuestionForm({
             disabled={soloLectura}
           />
           <Ayuda>
-            Se agrega a `notas` con fecha y usuario del panel. Solo es
-            obligatorio cuando la pregunta pasa a deshabilitada.
+            Se agrega a `notas` con fecha y usuario del panel. Solo es obligatorio cuando
+            la pregunta pasa a deshabilitada.
           </Ayuda>
         </div>
       )}
@@ -656,9 +647,7 @@ export default function QuestionForm({
           <input
             id="f-revisor"
             value={datos.revisado_por ?? ''}
-            onChange={(e) =>
-              set('revisado_por', e.target.value.trim() || null)
-            }
+            onChange={(e) => set('revisado_por', e.target.value.trim() || null)}
             className={inputClase}
             disabled={soloLectura}
           />
@@ -668,9 +657,7 @@ export default function QuestionForm({
           <input
             id="f-fecharev"
             value={datos.fecha_revision ?? ''}
-            onChange={(e) =>
-              set('fecha_revision', e.target.value.trim() || null)
-            }
+            onChange={(e) => set('fecha_revision', e.target.value.trim() || null)}
             className={inputClase}
             disabled={soloLectura}
           />

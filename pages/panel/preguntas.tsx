@@ -35,11 +35,9 @@ export default function PreguntasPage() {
       user={usuario}
       backHref="/panel"
     >
-        <h1 className="text-3xl font-bold text-slate-900 mb-6">
-          Gestión de Preguntas
-        </h1>
+      <h1 className="text-3xl font-bold text-slate-900 mb-6">Gestión de Preguntas</h1>
 
-        <QuestionsList />
+      <QuestionsList />
     </AdminLayout>
   );
 }

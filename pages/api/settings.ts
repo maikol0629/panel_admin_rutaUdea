@@ -126,8 +126,7 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse) {
 
   if (politica_repeticion !== undefined && !esPolitica(politica_repeticion)) {
     return res.status(400).json({
-      error:
-        'Política de repetición inválida. Use: ultimos_3, sin_repeticion o relajada',
+      error: 'Política de repetición inválida. Use: ultimos_3, sin_repeticion o relajada',
     });
   }
 
@@ -139,9 +138,7 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse) {
     }
     const { baja, media, alta } = distribucion_dificultad;
     if (baja < 0 || media < 0 || alta < 0) {
-      return res
-        .status(400)
-        .json({ error: 'Los porcentajes no pueden ser negativos' });
+      return res.status(400).json({ error: 'Los porcentajes no pueden ser negativos' });
     }
     const suma = baja + media + alta;
     if (suma <= 0 || suma > 200) {
@@ -184,15 +181,11 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse) {
   });
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     await requireAdmin(req);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Error de autenticación';
+    const message = error instanceof Error ? error.message : 'Error de autenticación';
     return res.status(adminErrorStatus(error)).json({ error: message });
   }
 

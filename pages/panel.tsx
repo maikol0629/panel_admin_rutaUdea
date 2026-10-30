@@ -155,43 +155,43 @@ export default function PanelDashboard() {
       user={usuario}
       maxWidth="5xl"
     >
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">
-          Bienvenido al panel administrativo
-        </h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">
+        Bienvenido al panel administrativo
+      </h1>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {tarjetas.map((t) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {tarjetas.map((t) => (
+          <div
+            key={t.etiqueta}
+            className="bg-white rounded-xl p-6 hover:shadow-lg transition-shadow"
+          >
             <div
-              key={t.etiqueta}
-              className="bg-white rounded-xl p-6 hover:shadow-lg transition-shadow"
+              className={`h-10 w-10 rounded-md ${t.fondo} flex items-center justify-center mb-4`}
             >
-              <div
-                className={`h-10 w-10 rounded-md ${t.fondo} flex items-center justify-center mb-4`}
-              >
-                <span className={`${t.color} text-xl`}>{t.icono}</span>
-              </div>
-              <h3 className="font-medium text-gray-500">{t.etiqueta}</h3>
-              <p className={`text-2xl font-bold ${t.color}`}>{t.valor}</p>
+              <span className={`${t.color} text-xl`}>{t.icono}</span>
             </div>
-          ))}
-        </div>
+            <h3 className="font-medium text-gray-500">{t.etiqueta}</h3>
+            <p className={`text-2xl font-bold ${t.color}`}>{t.valor}</p>
+          </div>
+        ))}
+      </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {MODULOS.map((modulo) => (
-            <a
-              key={modulo.href}
-              href={modulo.href}
-              className={`group block rounded-lg border border-dashed ${modulo.borde} p-6 text-center cursor-pointer ${modulo.hover} transition-colors`}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {MODULOS.map((modulo) => (
+          <a
+            key={modulo.href}
+            href={modulo.href}
+            className={`group block rounded-lg border border-dashed ${modulo.borde} p-6 text-center cursor-pointer ${modulo.hover} transition-colors`}
+          >
+            <h3
+              className={`text-lg font-medium text-gray-500 ${modulo.texto} transition-colors`}
             >
-              <h3
-                className={`text-lg font-medium text-gray-500 ${modulo.texto} transition-colors`}
-              >
-                {modulo.titulo}
-              </h3>
-              <p className="mt-2 text-sm text-gray-400">{modulo.descripcion}</p>
-            </a>
-          ))}
-        </div>
+              {modulo.titulo}
+            </h3>
+            <p className="mt-2 text-sm text-gray-400">{modulo.descripcion}</p>
+          </a>
+        ))}
+      </div>
     </AdminLayout>
   );
 }

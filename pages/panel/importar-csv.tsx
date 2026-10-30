@@ -42,23 +42,21 @@ export default function ImportarCsvPage() {
       maxWidth="5xl"
       contentClassName="space-y-8"
     >
-        <h1 className="text-3xl font-bold text-gray-900">
-          Importar datos del banco
-        </h1>
+      <h1 className="text-3xl font-bold text-gray-900">Importar datos del banco</h1>
 
-        <JsonlImportForm />
+      <JsonlImportForm />
 
-        <div className="border-t border-gray-200 pt-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-1">
-            Importar desde CSV (alternativa)
-          </h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Para planillas simples. Las opciones se guardan como objeto
-            <code className="mx-1">A–D</code> y toda fila entra en
-            <code className="mx-1">pendiente</code>.
-          </p>
-          <CsvImportForm />
-        </div>
+      <div className="border-t border-gray-200 pt-8">
+        <h2 className="text-lg font-medium text-gray-900 mb-1">
+          Importar desde CSV (alternativa)
+        </h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Para planillas simples. Las opciones se guardan como objeto
+          <code className="mx-1">A–D</code> y toda fila entra en
+          <code className="mx-1">pendiente</code>.
+        </p>
+        <CsvImportForm />
+      </div>
     </AdminLayout>
   );
 }

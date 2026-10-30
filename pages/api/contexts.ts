@@ -42,9 +42,15 @@ function normalizarContexto(
 ): Record<string, unknown> {
   const imagenes = Array.isArray(data['imagenes'])
     ? data['imagenes']
-        .filter((img): img is Record<string, unknown> => typeof img === 'object' && img !== null)
+        .filter(
+          (img): img is Record<string, unknown> =>
+            typeof img === 'object' && img !== null,
+        )
         .map((img, index) => ({
-          url: typeof img['url'] === 'string' && img['url'].trim() ? img['url'].trim() : null,
+          url:
+            typeof img['url'] === 'string' && img['url'].trim()
+              ? img['url'].trim()
+              : null,
           rol: 'contexto',
           orden: typeof img['orden'] === 'number' ? img['orden'] : index + 1,
           alt: typeof img['alt'] === 'string' && img['alt'].trim() ? img['alt'] : null,
@@ -61,7 +67,9 @@ function normalizarContexto(
     id,
     bank_version: asString(data['bank_version'], BANK_VERSION_DEFAULT),
     schema_version:
-      typeof data['schema_version'] === 'number' ? data['schema_version'] : SCHEMA_VERSION,
+      typeof data['schema_version'] === 'number'
+        ? data['schema_version']
+        : SCHEMA_VERSION,
     area: asString(data['area']),
     componente: asString(data['componente']),
     subtema: asString(data['subtema']),
@@ -94,7 +102,8 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   if (bankVersion) contextos = contextos.filter((c) => c['bank_version'] === bankVersion);
   if (search) {
     contextos = contextos.filter((c) => {
-      const texto = `${asString(c['id'])} ${asString(c['titulo'])} ${asString(c['texto'])} ${asString(c['subtema'])}`.toLowerCase();
+      const texto =
+        `${asString(c['id'])} ${asString(c['titulo'])} ${asString(c['texto'])} ${asString(c['subtema'])}`.toLowerCase();
       return texto.includes(search);
     });
   }
@@ -118,8 +127,10 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       total: contextos.length,
       conImagen,
       conMultiples,
-      razonamiento_logico: contextos.filter((c) => c['area'] === 'razonamiento_logico').length,
-      competencia_lectora: contextos.filter((c) => c['area'] === 'competencia_lectora').length,
+      razonamiento_logico: contextos.filter((c) => c['area'] === 'razonamiento_logico')
+        .length,
+      competencia_lectora: contextos.filter((c) => c['area'] === 'competencia_lectora')
+        .length,
     },
   });
 }
@@ -151,15 +162,11 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   });
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     await requireAdmin(req);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Error de autenticación';
+    const message = error instanceof Error ? error.message : 'Error de autenticación';
     return res.status(adminErrorStatus(error)).json({ error: message });
   }
 

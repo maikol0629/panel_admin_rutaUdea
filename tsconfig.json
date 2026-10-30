@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
@@ -16,24 +12,13 @@
     "isolatedModules": true,
     "noUncheckedIndexedAccess": true,
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"]
     },
     "allowJs": true,
     "noEmit": true,
     "incremental": true,
     "jsx": "react-jsx"
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".storybook/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    ".next",
-    "__tests__"
-  ]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".storybook/**/*"],
+  "exclude": ["node_modules", ".next", "__tests__"]
 }

@@ -8,10 +8,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { adminErrorStatus, requireAdmin } from '@/lib/firebase-admin';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Método no permitido' });
@@ -26,8 +23,7 @@ export default async function handler(
       nombre: identity.nombre,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Error al verificar sesión';
+    const message = error instanceof Error ? error.message : 'Error al verificar sesión';
     return res.status(adminErrorStatus(error)).json({ error: message });
   }
 }

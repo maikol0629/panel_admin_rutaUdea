@@ -109,8 +109,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   if (search) {
     preguntas = preguntas.filter(
       (p) =>
-        p.pregunta.toLowerCase().includes(search) ||
-        p.id.toLowerCase().includes(search),
+        p.pregunta.toLowerCase().includes(search) || p.id.toLowerCase().includes(search),
     );
   }
   if (idFiltro) {
@@ -169,10 +168,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
 
 async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   const body = leerCuerpo(req);
-  const p = normalizarPregunta(
-    asString(body['id']) || `T9-P${Date.now()}`,
-    body,
-  );
+  const p = normalizarPregunta(asString(body['id']) || `T9-P${Date.now()}`, body);
 
   if (!p.area || !p.pregunta.trim()) {
     return res.status(400).json({
@@ -181,8 +177,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   }
   if (p.subtema && !esComponenteValido(p.subtema)) {
     return res.status(400).json({
-      error:
-        'Subtema inválido: use la taxonomía oficial RL01–RL18 / CL01–CL14.',
+      error: 'Subtema inválido: use la taxonomía oficial RL01–RL18 / CL01–CL14.',
     });
   }
 
@@ -232,15 +227,11 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   });
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     await requireAdmin(req);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Error de autenticación';
+    const message = error instanceof Error ? error.message : 'Error de autenticación';
     return res.status(adminErrorStatus(error)).json({ error: message });
   }
 

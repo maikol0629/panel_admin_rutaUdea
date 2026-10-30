@@ -96,7 +96,9 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (typeof cambios['texto'] === 'string' && !cambios['texto'].trim()) {
-    return res.status(400).json({ error: 'El texto del contexto no puede quedar vacío.' });
+    return res
+      .status(400)
+      .json({ error: 'El texto del contexto no puede quedar vacío.' });
   }
   if ('imagenes' in cambios && !Array.isArray(cambios['imagenes'])) {
     return res.status(400).json({ error: 'imagenes debe ser una lista' });
@@ -147,15 +149,11 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse) {
   return res.status(200).json({ success: true, mensaje: 'Contexto eliminado.' });
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     await requireAdmin(req);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Error de autenticación';
+    const message = error instanceof Error ? error.message : 'Error de autenticación';
     return res.status(adminErrorStatus(error)).json({ error: message });
   }
 

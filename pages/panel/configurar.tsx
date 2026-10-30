@@ -92,12 +92,14 @@ export default function ConfigurarPage() {
     };
   }, [idToken]);
 
-  const manejarCambio = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => {
+  const manejarCambio = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
 
-    if (name === 'distribucion_baja' || name === 'distribucion_media' || name === 'distribucion_alta') {
+    if (
+      name === 'distribucion_baja' ||
+      name === 'distribucion_media' ||
+      name === 'distribucion_alta'
+    ) {
       const campo =
         name === 'distribucion_baja'
           ? 'baja'
@@ -155,9 +157,7 @@ export default function ConfigurarPage() {
       setConfig({ ...CONFIG_INICIAL, ...data.config });
       setExito('Configuración guardada exitosamente.');
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Error inesperado al guardar',
-      );
+      setError(err instanceof Error ? err.message : 'Error inesperado al guardar');
     } finally {
       setGuardando(false);
     }
@@ -184,196 +184,194 @@ export default function ConfigurarPage() {
       backHref="/panel"
       maxWidth="4xl"
     >
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">
-          Configuración del Simulacro
-        </h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">
+        Configuración del Simulacro
+      </h1>
 
-        {error && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md mb-6">
-            {error}
-          </div>
-        )}
+      {error && (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md mb-6">
+          {error}
+        </div>
+      )}
 
-        {exito && (
-          <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-md mb-6">
-            {exito}
-          </div>
-        )}
+      {exito && (
+        <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-md mb-6">
+          {exito}
+        </div>
+      )}
 
-        <form
-          onSubmit={guardarConfig}
-          className="bg-white rounded-xl shadow-sm p-8 space-y-6 max-w-2xl"
-        >
-          <div>
-            <label
-              htmlFor="tiempo_simulacro_minutos"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Tiempo simulacro (minutos)
-            </label>
-            <p className="text-sm text-gray-500 mb-2">
-              Duración total del simulacro en minutos. El valor por defecto es 120
-              (2 horas).
-            </p>
-            <input
-              id="tiempo_simulacro_minutos"
-              type="number"
-              name="tiempo_simulacro_minutos"
-              value={config.tiempo_simulacro_minutos}
-              onChange={manejarCambio}
-              min="10"
-              max="480"
-              step="5"
-              className="w-full rounded-md border-gray-300 shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 block text-sm text-gray-900"
-              placeholder="120"
-              required
-            />
-          </div>
+      <form
+        onSubmit={guardarConfig}
+        className="bg-white rounded-xl shadow-sm p-8 space-y-6 max-w-2xl"
+      >
+        <div>
+          <label
+            htmlFor="tiempo_simulacro_minutos"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Tiempo simulacro (minutos)
+          </label>
+          <p className="text-sm text-gray-500 mb-2">
+            Duración total del simulacro en minutos. El valor por defecto es 120 (2
+            horas).
+          </p>
+          <input
+            id="tiempo_simulacro_minutos"
+            type="number"
+            name="tiempo_simulacro_minutos"
+            value={config.tiempo_simulacro_minutos}
+            onChange={manejarCambio}
+            min="10"
+            max="480"
+            step="5"
+            className="w-full rounded-md border-gray-300 shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 block text-sm text-gray-900"
+            placeholder="120"
+            required
+          />
+        </div>
 
-          <div>
-            <label
-              htmlFor="inactividad_max_minutos"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Inactividad máxima (minutos)
-            </label>
-            <p className="text-sm text-gray-500 mb-2">
-              Tiempo sin actividad del usuario que dispara el cierre del simulacro.
-            </p>
-            <input
-              id="inactividad_max_minutos"
-              type="number"
-              name="inactividad_max_minutos"
-              value={config.inactividad_max_minutos}
-              onChange={manejarCambio}
-              min="1"
-              max="60"
-              step="1"
-              className="w-full rounded-md border-gray-300 shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 block text-sm text-gray-900"
-              placeholder="30"
-              required
-            />
-          </div>
+        <div>
+          <label
+            htmlFor="inactividad_max_minutos"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Inactividad máxima (minutos)
+          </label>
+          <p className="text-sm text-gray-500 mb-2">
+            Tiempo sin actividad del usuario que dispara el cierre del simulacro.
+          </p>
+          <input
+            id="inactividad_max_minutos"
+            type="number"
+            name="inactividad_max_minutos"
+            value={config.inactividad_max_minutos}
+            onChange={manejarCambio}
+            min="1"
+            max="60"
+            step="1"
+            className="w-full rounded-md border-gray-300 shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 block text-sm text-gray-900"
+            placeholder="30"
+            required
+          />
+        </div>
 
-          <div>
-            <label
-              htmlFor="politica_repeticion"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Política de repetición
-            </label>
-            <p className="text-sm text-gray-500 mb-2">
-              Controla si preguntas de simulacros anteriores pueden repetirse.
-            </p>
-            <select
-              id="politica_repeticion"
-              name="politica_repeticion"
-              value={config.politica_repeticion}
-              onChange={manejarCambio}
-              className="w-full rounded-md border-gray-300 shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 block text-sm text-gray-900"
-            >
-              <option value="ultimos_3">
-                Últimos 3 simulacros (recomendado)
-              </option>
-              <option value="sin_repeticion">Ninguna repetición</option>
-              <option value="relajada">Repetición relajada</option>
-            </select>
-          </div>
+        <div>
+          <label
+            htmlFor="politica_repeticion"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Política de repetición
+          </label>
+          <p className="text-sm text-gray-500 mb-2">
+            Controla si preguntas de simulacros anteriores pueden repetirse.
+          </p>
+          <select
+            id="politica_repeticion"
+            name="politica_repeticion"
+            value={config.politica_repeticion}
+            onChange={manejarCambio}
+            className="w-full rounded-md border-gray-300 shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 block text-sm text-gray-900"
+          >
+            <option value="ultimos_3">Últimos 3 simulacros (recomendado)</option>
+            <option value="sin_repeticion">Ninguna repetición</option>
+            <option value="relajada">Repetición relajada</option>
+          </select>
+        </div>
 
-          <div>
-            <span className="block text-sm font-medium text-gray-700 mb-2">
-              Distribución de dificultad
-            </span>
-            <p className="text-sm text-gray-500 mb-2">
-              Porcentajes para la selección de preguntas por dificultad en cada
-              simulacro. Deben sumar aproximadamente 100.
-            </p>
+        <div>
+          <span className="block text-sm font-medium text-gray-700 mb-2">
+            Distribución de dificultad
+          </span>
+          <p className="text-sm text-gray-500 mb-2">
+            Porcentajes para la selección de preguntas por dificultad en cada simulacro.
+            Deben sumar aproximadamente 100.
+          </p>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label
-                  htmlFor="distribucion_baja"
-                  className="block text-xs font-medium text-gray-600 mb-1"
-                >
-                  Baja
-                </label>
-                <input
-                  id="distribucion_baja"
-                  type="number"
-                  name="distribucion_baja"
-                  value={config.distribucion_dificultad.baja}
-                  onChange={manejarCambio}
-                  min="0"
-                  max="100"
-                  step="1"
-                  className="w-full rounded-md border-gray-300 shadow-sm py-1 px-2 text-center text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="distribucion_media"
-                  className="block text-xs font-medium text-gray-600 mb-1"
-                >
-                  Media
-                </label>
-                <input
-                  id="distribucion_media"
-                  type="number"
-                  name="distribucion_media"
-                  value={config.distribucion_dificultad.media}
-                  onChange={manejarCambio}
-                  min="0"
-                  max="100"
-                  step="1"
-                  className="w-full rounded-md border-gray-300 shadow-sm py-1 px-2 text-center text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="distribucion_alta"
-                  className="block text-xs font-medium text-gray-600 mb-1"
-                >
-                  Alta
-                </label>
-                <input
-                  id="distribucion_alta"
-                  type="number"
-                  name="distribucion_alta"
-                  value={config.distribucion_dificultad.alta}
-                  onChange={manejarCambio}
-                  min="0"
-                  max="100"
-                  step="1"
-                  className="w-full rounded-md border-gray-300 shadow-sm py-1 px-2 text-center text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
-              </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label
+                htmlFor="distribucion_baja"
+                className="block text-xs font-medium text-gray-600 mb-1"
+              >
+                Baja
+              </label>
+              <input
+                id="distribucion_baja"
+                type="number"
+                name="distribucion_baja"
+                value={config.distribucion_dificultad.baja}
+                onChange={manejarCambio}
+                min="0"
+                max="100"
+                step="1"
+                className="w-full rounded-md border-gray-300 shadow-sm py-1 px-2 text-center text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
             </div>
-
-            <p className="mt-2 text-xs text-gray-500">
-              <strong>Suma actual:</strong> {sumaDistribucion} / 100
-            </p>
+            <div>
+              <label
+                htmlFor="distribucion_media"
+                className="block text-xs font-medium text-gray-600 mb-1"
+              >
+                Media
+              </label>
+              <input
+                id="distribucion_media"
+                type="number"
+                name="distribucion_media"
+                value={config.distribucion_dificultad.media}
+                onChange={manejarCambio}
+                min="0"
+                max="100"
+                step="1"
+                className="w-full rounded-md border-gray-300 shadow-sm py-1 px-2 text-center text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="distribucion_alta"
+                className="block text-xs font-medium text-gray-600 mb-1"
+              >
+                Alta
+              </label>
+              <input
+                id="distribucion_alta"
+                type="number"
+                name="distribucion_alta"
+                value={config.distribucion_dificultad.alta}
+                onChange={manejarCambio}
+                min="0"
+                max="100"
+                step="1"
+                className="w-full rounded-md border-gray-300 shadow-sm py-1 px-2 text-center text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => router.push('/panel')}
-              className="flex-1 py-3 px-4 rounded-md font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={guardando}
-              className="flex-1 py-3 px-4 rounded-md font-medium text-white bg-purple-600 hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {guardando ? 'Guardando…' : 'Guardar configuración'}
-            </button>
-          </div>
-        </form>
+          <p className="mt-2 text-xs text-gray-500">
+            <strong>Suma actual:</strong> {sumaDistribucion} / 100
+          </p>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => router.push('/panel')}
+            className="flex-1 py-3 px-4 rounded-md font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={guardando}
+            className="flex-1 py-3 px-4 rounded-md font-medium text-white bg-purple-600 hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {guardando ? 'Guardando…' : 'Guardar configuración'}
+          </button>
+        </div>
+      </form>
     </AdminLayout>
   );
 }

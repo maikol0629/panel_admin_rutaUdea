@@ -87,9 +87,8 @@ export default function JsonlImportForm() {
           Importar desde JSONL (recomendado)
         </h2>
         <p className="text-sm text-gray-500 mt-1">
-          Acepta el formato canónico del ETL (`questions_v2.jsonl` o
-          `contexts_v2.jsonl`). Valida cada línea y reporta las inválidas con su
-          número y motivo.
+          Acepta el formato canónico del ETL (`questions_v2.jsonl` o `contexts_v2.jsonl`).
+          Valida cada línea y reporta las inválidas con su número y motivo.
         </p>
       </div>
 
@@ -111,9 +110,7 @@ export default function JsonlImportForm() {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Archivo
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Archivo</label>
           <input
             type="file"
             accept=".jsonl,application/jsonl,application/x-ndjson,text/plain"
@@ -140,8 +137,8 @@ export default function JsonlImportForm() {
         <span>
           Conservar `estado` y `verificada` del archivo.
           <span className="block text-xs text-gray-400">
-            Por defecto todo entra como <code>pendiente</code> y sin verificar
-            (D-08). Solo use esta opción para restaurar un lote ya revisado.
+            Por defecto todo entra como <code>pendiente</code> y sin verificar (D-08).
+            Solo use esta opción para restaurar un lote ya revisado.
           </span>
         </span>
       </label>

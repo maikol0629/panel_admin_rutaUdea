@@ -11,17 +11,9 @@
  * Para el cliente usar `@/lib/firebase`.
  */
 
-import {
-  cert,
-  getApps,
-  initializeApp,
-  type App as AdminApp,
-} from 'firebase-admin/app';
+import { cert, getApps, initializeApp, type App as AdminApp } from 'firebase-admin/app';
 import { getAuth, type Auth as AdminAuth } from 'firebase-admin/auth';
-import {
-  getFirestore,
-  type Firestore as AdminFirestore,
-} from 'firebase-admin/firestore';
+import { getFirestore, type Firestore as AdminFirestore } from 'firebase-admin/firestore';
 
 function getAdminApp(): AdminApp {
   const existentes = getApps();

@@ -28,11 +28,7 @@ import {
   requireAdmin,
   type AdminIdentity,
 } from '@/lib/firebase-admin';
-import {
-  faltantesParaPublicar,
-  normalizarPregunta,
-  type PreguntaV2,
-} from '@/lib/bank';
+import { faltantesParaPublicar, normalizarPregunta, type PreguntaV2 } from '@/lib/bank';
 
 export const config = {
   api: { bodyParser: false },
@@ -159,13 +155,21 @@ function prepararPregunta(
 
   const estadoArchivo = textoDe(data['estado']) || 'pendiente';
   const estadoFinal = respetarEstado ? estadoArchivo : 'pendiente';
-  if (!['aprobado', 'aprobado_con_imagen', 'pendiente', 'deshabilitado'].includes(estadoFinal)) {
+  if (
+    !['aprobado', 'aprobado_con_imagen', 'pendiente', 'deshabilitado'].includes(
+      estadoFinal,
+    )
+  ) {
     errores.push(`estado inválido: ${estadoFinal}`);
   }
 
-  if (respetarEstado && (estadoFinal === 'aprobado' || estadoFinal === 'aprobado_con_imagen')) {
+  if (
+    respetarEstado &&
+    (estadoFinal === 'aprobado' || estadoFinal === 'aprobado_con_imagen')
+  ) {
     const faltantes = faltantesParaPublicar({ ...normalizada, estado: estadoFinal });
-    if (faltantes.length > 0) errores.push(`aprobada incompleta: ${faltantes.join(', ')}`);
+    if (faltantes.length > 0)
+      errores.push(`aprobada incompleta: ${faltantes.join(', ')}`);
   }
 
   if (errores.length > 0) {
@@ -278,10 +282,7 @@ async function guardarLotes(
   return guardados;
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Método no permitido' });
@@ -297,9 +298,10 @@ export default async function handler(
 
   try {
     const tipoRaw = req.query['tipo'];
-    const tipo = (Array.isArray(tipoRaw) ? tipoRaw[0] : tipoRaw) === 'contextos'
-      ? 'contextos'
-      : 'preguntas';
+    const tipo =
+      (Array.isArray(tipoRaw) ? tipoRaw[0] : tipoRaw) === 'contextos'
+        ? 'contextos'
+        : 'preguntas';
 
     const { filename, texto, respetarEstado } = await leerCuerpo(req);
     if (!texto) {
@@ -335,8 +337,7 @@ export default async function handler(
       else if (preparada.documento) documentos.push(preparada.documento);
     });
 
-    const coleccion =
-      tipo === 'contextos' ? COLECCION_CONTEXTS : COLECCION_QUESTIONS;
+    const coleccion = tipo === 'contextos' ? COLECCION_CONTEXTS : COLECCION_QUESTIONS;
     const guardados = await guardarLotes(coleccion, documentos);
 
     return res.status(200).json({
@@ -365,7 +366,9 @@ export default async function handler(
   } catch (error) {
     console.error('Error en /api/import/jsonl:', error);
     const message =
-      error instanceof Error ? error.message : 'Error interno durante la importación JSONL';
+      error instanceof Error
+        ? error.message
+        : 'Error interno durante la importación JSONL';
     return res.status(500).json({ error: message });
   }
 }

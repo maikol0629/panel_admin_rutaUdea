@@ -69,26 +69,18 @@ async function cargarContextos(): Promise<Map<string, Record<string, unknown>>> 
     .limit(MAX_DOCS)
     .get();
   return new Map(
-    snapshot.docs.map((doc) => [
-      doc.id,
-      doc.data() as Record<string, unknown>,
-    ]),
+    snapshot.docs.map((doc) => [doc.id, doc.data() as Record<string, unknown>]),
   );
 }
 
 /** Hash estable del lote: versión + ids ordenados + updated_at. */
-export function calcularHashLote(
-  bankVersion: string,
-  preguntas: PreguntaV2[],
-): string {
+export function calcularHashLote(bankVersion: string, preguntas: PreguntaV2[]): string {
   const firma = preguntas
     .filter(esAprobada)
     .map((p) => `${p.id}:${asString(p.updated_at)}:${p.estado}`)
     .sort()
     .join('\n');
-  return createHash('sha256')
-    .update(`${bankVersion}\n${firma}`)
-    .digest('hex');
+  return createHash('sha256').update(`${bankVersion}\n${firma}`).digest('hex');
 }
 
 function verificarLote(
@@ -124,10 +116,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   const activo = manifiestoSnap.exists
     ? ((manifiestoSnap.data() ?? {}) as Record<string, unknown>)
     : null;
-  const versionActiva = asString(
-    activo?.['bank_version'],
-    BANK_VERSION_DEFAULT,
-  );
+  const versionActiva = asString(activo?.['bank_version'], BANK_VERSION_DEFAULT);
   const deVersion = preguntas.filter((p) => p.bank_version === versionActiva);
   const resumen = resumenBanco(preguntas);
   const { motivos } = verificarLote(deVersion, contextos, versionActiva);
@@ -169,12 +158,13 @@ async function handlePost(
 
   const bankVersion = asString(body['bank_version'], BANK_VERSION_DEFAULT).trim();
   const schemaVersion =
-    typeof body['schema_version'] === 'number'
-      ? body['schema_version']
-      : SCHEMA_VERSION;
+    typeof body['schema_version'] === 'number' ? body['schema_version'] : SCHEMA_VERSION;
   if (!bankVersion) return res.status(400).json({ error: 'bank_version requerida' });
 
-  const [preguntas, contextos] = await Promise.all([cargarPreguntas(), cargarContextos()]);
+  const [preguntas, contextos] = await Promise.all([
+    cargarPreguntas(),
+    cargarContextos(),
+  ]);
   const deVersion = preguntas.filter((p) => p.bank_version === bankVersion);
   if (deVersion.filter(esAprobada).length === 0) {
     return res.status(400).json({
@@ -217,9 +207,8 @@ async function handlePost(
     },
     published_at: ahora,
     published_by: revisor,
-    min_app_version: typeof body['min_app_version'] === 'number'
-      ? body['min_app_version']
-      : 0,
+    min_app_version:
+      typeof body['min_app_version'] === 'number' ? body['min_app_version'] : 0,
     image_base_url:
       asString(body['image_base_url']) ||
       `https://rutaudea-25fe0.web.app/questions/${bankVersion}`,
@@ -256,16 +245,12 @@ async function handlePost(
   });
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   let identidad: AdminIdentity;
   try {
     identidad = await requireAdmin(req);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Error de autenticación';
+    const message = error instanceof Error ? error.message : 'Error de autenticación';
     return res.status(adminErrorStatus(error)).json({ error: message });
   }
 
