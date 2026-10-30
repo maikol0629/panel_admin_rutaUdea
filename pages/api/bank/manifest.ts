@@ -36,8 +36,10 @@ import {
   normalizarPregunta,
   resumenBanco,
   validarLoteParaPublicar,
+  type ImagenRef,
   type PreguntaV2,
 } from '@/lib/bank';
+import type { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 const DOC_ACTIVO = 'active';
 const MAX_DOCS = 2000;
@@ -58,9 +60,11 @@ async function cargarPreguntas(bankVersion?: string): Promise<PreguntaV2[]> {
     .limit(MAX_DOCS)
     .get();
   return snapshot.docs
-    .map((doc) => normalizarPregunta(doc.id, doc.data() as Record<string, unknown>))
-    .filter((p) => Boolean(p.area) && Boolean(p.pregunta))
-    .filter((p) => (bankVersion ? p.bank_version === bankVersion : true));
+    .map((doc: QueryDocumentSnapshot<DocumentData>) =>
+      normalizarPregunta(doc.id, doc.data() as Record<string, unknown>),
+    )
+    .filter((p: PreguntaV2) => Boolean(p.area) && Boolean(p.pregunta))
+    .filter((p: PreguntaV2) => (bankVersion ? p.bank_version === bankVersion : true));
 }
 
 async function cargarContextos(): Promise<Map<string, Record<string, unknown>>> {
@@ -69,7 +73,10 @@ async function cargarContextos(): Promise<Map<string, Record<string, unknown>>> 
     .limit(MAX_DOCS)
     .get();
   return new Map(
-    snapshot.docs.map((doc) => [doc.id, doc.data() as Record<string, unknown>]),
+    snapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => [
+      doc.id,
+      doc.data() as Record<string, unknown>,
+    ]),
   );
 }
 
@@ -117,12 +124,12 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     ? ((manifiestoSnap.data() ?? {}) as Record<string, unknown>)
     : null;
   const versionActiva = asString(activo?.['bank_version'], BANK_VERSION_DEFAULT);
-  const deVersion = preguntas.filter((p) => p.bank_version === versionActiva);
+  const deVersion = preguntas.filter((p: PreguntaV2) => p.bank_version === versionActiva);
   const resumen = resumenBanco(preguntas);
   const { motivos } = verificarLote(deVersion, contextos, versionActiva);
 
-  const imagenes = deVersion.flatMap((p) => p.imagenes);
-  const conUrl = imagenes.filter((img) => Boolean(img.url)).length;
+  const imagenes = deVersion.flatMap((p: PreguntaV2) => p.imagenes);
+  const conUrl = imagenes.filter((img: ImagenRef) => Boolean(img.url)).length;
 
   return res.status(200).json({
     success: true,

@@ -10,6 +10,7 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+import type { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import {
   adminErrorStatus,
   COLECCION_CONTEXTS,
@@ -52,7 +53,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   return res.status(200).json({
     success: true,
     contexto: { id: snap.id, ...(snap.data() as Record<string, unknown>) },
-    preguntas: referencias.docs.map((doc) => ({
+    preguntas: referencias.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({
       id: doc.id,
       estado: asString((doc.data() as Record<string, unknown>)['estado'], 'pendiente'),
       pregunta: asString((doc.data() as Record<string, unknown>)['pregunta']),
