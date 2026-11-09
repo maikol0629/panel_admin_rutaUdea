@@ -2,8 +2,8 @@
  * Página de login para el panel administrativo.
  *
  * Autentica con email/contraseña (SDK cliente) y exige el custom claim
- * `rol: 'admin'`. Si es válido redirige a /panel; si no, cierra la sesión
- * y muestra el error.
+ * `rol: 'admin'` o `'superadmin'`. Si es válido redirige a /panel; si no,
+ * cierra la sesión y muestra el error.
  */
 
 import { useEffect, useState } from 'react';
