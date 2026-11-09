@@ -23,19 +23,23 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import {
   adminErrorStatus,
   COLECCION_CONTEXTS,
+  COLECCION_HISTORIAL,
   COLECCION_QUESTIONS,
   getAdminDb,
   requireAdmin,
   type AdminIdentity,
 } from '@/lib/firebase-admin';
 import { faltantesParaPublicar, normalizarPregunta, type PreguntaV2 } from '@/lib/bank';
+import { construirEvento, snapshotPregunta } from '@/lib/historial';
 
 export const config = {
   api: { bodyParser: false },
 };
 
 const MAX_BYTES = 8 * 1024 * 1024;
-const TAMANO_LOTE = 400;
+/** Cada pregunta escribe también su evento de historial (2 operaciones). */
+const TAMANO_LOTE_PREGUNTAS = 200;
+const TAMANO_LOTE_CONTEXTOS = 400;
 
 interface ErrorFila {
   linea: number;
@@ -267,17 +271,39 @@ function prepararContexto(
 async function guardarLotes(
   coleccion: string,
   documentos: Record<string, unknown>[],
+  contexto: {
+    tipo: 'preguntas' | 'contextos';
+    identidad: AdminIdentity;
+    archivo: string;
+  },
 ): Promise<number> {
   const db = getAdminDb();
+  const tamano =
+    contexto.tipo === 'preguntas' ? TAMANO_LOTE_PREGUNTAS : TAMANO_LOTE_CONTEXTOS;
   let guardados = 0;
-  for (let i = 0; i < documentos.length; i += TAMANO_LOTE) {
+  for (let i = 0; i < documentos.length; i += tamano) {
     const lote = db.batch();
-    for (const documento of documentos.slice(i, i + TAMANO_LOTE)) {
+    for (const documento of documentos.slice(i, i + tamano)) {
       const id = textoDe(documento['id']);
       lote.set(db.collection(coleccion).doc(id), documento, { merge: true });
+      if (contexto.tipo === 'preguntas') {
+        lote.set(
+          db.collection(COLECCION_HISTORIAL).doc(),
+          construirEvento({
+            preguntaId: id,
+            actorUid: contexto.identidad.uid,
+            actorNombre: contexto.identidad.nombre,
+            actorRol: contexto.identidad.rol,
+            accion: 'importacion',
+            origen: 'importacion',
+            archivo: contexto.archivo,
+            snapshot: snapshotPregunta(documento),
+          }),
+        );
+      }
     }
     await lote.commit();
-    guardados += Math.min(TAMANO_LOTE, documentos.length - i);
+    guardados += Math.min(tamano, documentos.length - i);
   }
   return guardados;
 }
@@ -338,7 +364,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const coleccion = tipo === 'contextos' ? COLECCION_CONTEXTS : COLECCION_QUESTIONS;
-    const guardados = await guardarLotes(coleccion, documentos);
+    const guardados = await guardarLotes(coleccion, documentos, {
+      tipo,
+      identidad,
+      archivo: filename,
+    });
 
     return res.status(200).json({
       success: errores.length === 0,

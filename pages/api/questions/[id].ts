@@ -18,6 +18,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import {
   adminErrorStatus,
+  COLECCION_HISTORIAL,
   COLECCION_QUESTIONS,
   COLECCION_QUESTIONS_LEGACY,
   getAdminDb,
@@ -30,6 +31,7 @@ import {
   normalizarOpciones,
   normalizarPregunta,
 } from '@/lib/bank';
+import { calcularCambios, construirEvento, type AccionHistorial } from '@/lib/historial';
 
 function getId(req: NextApiRequest): string {
   const v = req.query['id'];
@@ -295,8 +297,37 @@ async function handlePut(
     actualizadoPor: revisor,
   };
 
-  // Merge: las claves no enviadas (incluidas las desconocidas) se conservan.
-  await ref.set(cambios, { merge: true });
+  const despues = { ...actual, ...cambios };
+  const cambiosContenido = calcularCambios(actual, despues);
+  const reporteId = limpiarTexto(body['reporteId']);
+  const accionHistorial: AccionHistorial = accion
+    ? accion === 'rechazar' || accion === 'cuarentena' || accion === 'deshabilitar'
+      ? 'deshabilitacion'
+      : 'revision'
+    : 'edicion';
+  const evento = construirEvento({
+    preguntaId: id,
+    actorUid: identidad.uid,
+    actorNombre: identidad.nombre,
+    actorRol: identidad.rol,
+    accion: accionHistorial,
+    origen: reporteId ? 'reporte' : 'panel',
+    reporteId,
+    cambios: cambiosContenido,
+    motivo: limpiarTexto(body['motivo']),
+    estado: asString(despues['estado']) || estadoFinal,
+  });
+
+  // La pregunta y su evento de historial se escriben en el mismo batch para
+  // que no quede un cambio sin trazabilidad.
+  const db = getAdminDb();
+  const lote = db.batch();
+  lote.set(ref, cambios, { merge: true });
+  if (Object.keys(cambiosContenido).length > 0 || accion) {
+    lote.set(db.collection(COLECCION_HISTORIAL).doc(), evento);
+  }
+  await lote.commit();
+
   const actualizado = await ref.get();
   const datos = (actualizado.data() ?? {}) as Record<string, unknown>;
   return res.status(200).json({
@@ -338,21 +369,38 @@ async function handleDelete(
   const actual = (snap.data() ?? {}) as Record<string, unknown>;
   const ahora = new Date().toISOString();
   const revisor = limpiarTexto(identidad.nombre) ?? 'admin-panel';
-  await ref.set(
-    {
-      estado: 'deshabilitado',
-      notas: combinarNotas(actual['notas'], motivo),
-      revisado_por: revisor,
-      fecha_revision: ahora,
-      updated_at: ahora,
-      metadatos: {
-        ...((actual['metadatos'] as Record<string, unknown> | undefined) ?? {}),
-        fechaActualizacion: ahora,
-        actualizadoPor: revisor,
-      },
+  const cambios = {
+    estado: 'deshabilitado',
+    notas: combinarNotas(actual['notas'], motivo),
+    revisado_por: revisor,
+    fecha_revision: ahora,
+    updated_at: ahora,
+    metadatos: {
+      ...((actual['metadatos'] as Record<string, unknown> | undefined) ?? {}),
+      fechaActualizacion: ahora,
+      actualizadoPor: revisor,
     },
-    { merge: true },
-  );
+  };
+  const despues = { ...actual, ...cambios };
+  const reporteId = limpiarTexto(body['reporteId']);
+  const evento = construirEvento({
+    preguntaId: id,
+    actorUid: identidad.uid,
+    actorNombre: identidad.nombre,
+    actorRol: identidad.rol,
+    accion: 'deshabilitacion',
+    origen: reporteId ? 'reporte' : 'panel',
+    reporteId,
+    cambios: calcularCambios(actual, despues),
+    motivo,
+  });
+
+  const db = getAdminDb();
+  const lote = db.batch();
+  lote.set(ref, cambios, { merge: true });
+  lote.set(db.collection(COLECCION_HISTORIAL).doc(), evento);
+  await lote.commit();
+
   const actualizado = await ref.get();
   return res.status(200).json({
     success: true,

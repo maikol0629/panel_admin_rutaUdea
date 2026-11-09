@@ -17,9 +17,12 @@ import AdminLayout from '@/components/layout/AdminLayout';
 
 export default function EditarPreguntaPage() {
   const router = useRouter();
-  const { id, banco } = router.query;
+  const { id, banco, reporteId: reporteIdQuery } = router.query;
   const preguntaId = Array.isArray(id) ? (id[0] ?? '') : (id ?? '');
   const esLegacy = (Array.isArray(banco) ? banco[0] : banco) === 'legacy';
+  const reporteId = Array.isArray(reporteIdQuery)
+    ? (reporteIdQuery[0] ?? '')
+    : (reporteIdQuery ?? '');
   const { idToken } = useAdminUser();
   const [usuario, setUsuario] = useState<User | null>(null);
   const [initial, setInitial] = useState<PreguntaEditable | null>(null);
@@ -85,7 +88,10 @@ export default function EditarPreguntaPage() {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${idToken}`,
           },
-          body: JSON.stringify(datos),
+          body: JSON.stringify({
+            ...datos,
+            reporteId: reporteId || undefined,
+          }),
         });
         const data = (await res.json()) as {
           success?: boolean;
@@ -98,14 +104,18 @@ export default function EditarPreguntaPage() {
             : '';
           throw new Error(`${data.error ?? 'No se pudo guardar'}${detalle}`);
         }
-        await router.replace(`/panel/preguntas/${encodeURIComponent(preguntaId)}`);
+        await router.replace(
+          `/panel/preguntas/${encodeURIComponent(preguntaId)}${
+            reporteId ? `?reporteId=${encodeURIComponent(reporteId)}` : ''
+          }#historial`,
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error inesperado');
       } finally {
         setGuardando(false);
       }
     },
-    [idToken, preguntaId, router],
+    [idToken, preguntaId, reporteId, router],
   );
 
   return (
@@ -114,7 +124,11 @@ export default function EditarPreguntaPage() {
       subtitle={esLegacy ? 'Banco legacy · solo lectura' : `ID ${preguntaId}`}
       user={usuario}
       backHref={`/panel/preguntas/${encodeURIComponent(preguntaId)}${
-        esLegacy ? '?banco=legacy' : ''
+        esLegacy
+          ? '?banco=legacy'
+          : reporteId
+            ? `?reporteId=${encodeURIComponent(reporteId)}#historial`
+            : ''
       }`}
       maxWidth="4xl"
     >
@@ -134,7 +148,11 @@ export default function EditarPreguntaPage() {
           onCancel={() =>
             router.push(
               `/panel/preguntas/${encodeURIComponent(preguntaId)}${
-                esLegacy ? '?banco=legacy' : ''
+                esLegacy
+                  ? '?banco=legacy'
+                  : reporteId
+                    ? `?reporteId=${encodeURIComponent(reporteId)}#historial`
+                    : ''
               }`,
             )
           }

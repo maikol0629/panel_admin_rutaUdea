@@ -72,6 +72,14 @@ const MODULOS = [
     texto: 'group-hover:text-rose-600',
   },
   {
+    href: '/panel/historial',
+    titulo: '🧾 Historial de cambios',
+    descripcion: 'Auditoría: quién cambió qué y desde qué reporte',
+    hover: 'hover:bg-indigo-50',
+    borde: 'border-indigo-300',
+    texto: 'group-hover:text-indigo-600',
+  },
+  {
     href: '/panel/usuarios',
     titulo: '👥 Usuarios y roles',
     descripcion: 'Superadmin: gestionar admins y cuentas del panel',

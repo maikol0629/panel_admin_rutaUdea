@@ -16,14 +16,18 @@ import { auth } from '@/lib/firebase';
 import { useAdminUser } from '@/hooks/useAdminUser';
 import { normalizarPregunta, type PreguntaV2 } from '@/lib/bank';
 import PreguntaExamenCard from '@/components/questions/PreguntaExamenCard';
+import HistorialPregunta from '@/components/history/HistorialPregunta';
 import AdminLayout from '@/components/layout/AdminLayout';
 
 export default function PreguntaDetallePage() {
   const router = useRouter();
-  const { id, banco } = router.query;
+  const { id, banco, reporteId: reporteIdQuery } = router.query;
   const preguntaId = Array.isArray(id) ? (id[0] ?? '') : (id ?? '');
   const bancoParam =
     (Array.isArray(banco) ? banco[0] : banco) === 'legacy' ? 'legacy' : 'v2';
+  const reporteId = Array.isArray(reporteIdQuery)
+    ? (reporteIdQuery[0] ?? '')
+    : (reporteIdQuery ?? '');
   const { idToken } = useAdminUser();
   const [usuario, setUsuario] = useState<User | null>(null);
   const [pregunta, setPregunta] = useState<PreguntaV2 | null>(null);
@@ -32,6 +36,7 @@ export default function PreguntaDetallePage() {
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [mostrarMetadatos, setMostrarMetadatos] = useState(false);
+  const [historialVersion, setHistorialVersion] = useState(0);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -90,7 +95,12 @@ export default function PreguntaDetallePage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ accion, motivo, estado: estadoFinal }),
+        body: JSON.stringify({
+          accion,
+          motivo,
+          estado: estadoFinal,
+          reporteId: reporteId || undefined,
+        }),
       });
       const data = (await res.json()) as {
         success?: boolean;
@@ -106,6 +116,7 @@ export default function PreguntaDetallePage() {
       }
       setPregunta(normalizarPregunta(preguntaId, data.pregunta));
       setAviso(`Acción "${accion}" aplicada.`);
+      setHistorialVersion((valor) => valor + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado');
     } finally {
@@ -179,7 +190,9 @@ export default function PreguntaDetallePage() {
               !esLegacy
                 ? () =>
                     void router.push(
-                      `/panel/preguntas/${encodeURIComponent(preguntaId)}/editar`,
+                      `/panel/preguntas/${encodeURIComponent(preguntaId)}/editar${
+                        reporteId ? `?reporteId=${encodeURIComponent(reporteId)}` : ''
+                      }`,
                     )
                 : undefined
             }
@@ -231,6 +244,14 @@ export default function PreguntaDetallePage() {
                 motivo y se registran en las notas.
               </p>
             </div>
+          )}
+
+          {!esLegacy && (
+            <HistorialPregunta
+              key={`${preguntaId}-${historialVersion}`}
+              preguntaId={preguntaId}
+              reporteId={reporteId || null}
+            />
           )}
         </>
       )}

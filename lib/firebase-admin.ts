@@ -58,6 +58,11 @@ export const COLECCION_CONTEXTS = 'contexts_v2';
 export const COLECCION_BANK_MANIFEST = 'bank_manifest';
 export const COLECCION_SETTINGS = 'settings';
 export const COLECCION_REPORTES_PREGUNTAS = 'reportesPreguntas';
+/**
+ * Historial de cambios de preguntas. Colección exclusiva del panel
+ * administrativo; la app móvil no la lee ni la escribe.
+ */
+export const COLECCION_HISTORIAL = 'historialPreguntas';
 
 export interface AdminIdentity {
   uid: string;

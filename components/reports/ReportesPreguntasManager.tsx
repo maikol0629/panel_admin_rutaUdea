@@ -505,11 +505,22 @@ export default function ReportesPreguntasManager() {
                               Ver pregunta
                             </Link>
                             <Link
-                              href={`/panel/preguntas/${encodeURIComponent(reporte.questionId)}/editar`}
+                              href={`/panel/preguntas/${encodeURIComponent(
+                                reporte.questionId,
+                              )}/editar?reporteId=${encodeURIComponent(reporte.id)}`}
                               className="text-xs text-yellow-700 hover:underline"
-                              title="Editar pregunta"
+                              title="Editar pregunta vinculando este reporte"
                             >
                               Editar
+                            </Link>
+                            <Link
+                              href={`/panel/preguntas/${encodeURIComponent(
+                                reporte.questionId,
+                              )}?reporteId=${encodeURIComponent(reporte.id)}#historial`}
+                              className="text-xs text-slate-600 hover:underline"
+                              title="Ver historial de cambios de la pregunta"
+                            >
+                              Historial
                             </Link>
                           </div>
                         </div>
