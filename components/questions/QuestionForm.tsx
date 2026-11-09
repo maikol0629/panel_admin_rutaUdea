@@ -1,27 +1,16 @@
 /**
- * Formulario completo de edición de preguntas (contrato v2).
+ * Formulario de edición de preguntas (contrato v2).
  *
- * Incluye:
- * - Campos por área: `contexto` (RL y grupos CL) y `texto_base` (CL).
- * - Opciones como objeto `{A,B,C,D}` y aviso D-06 (`opciones_en_imagen`).
- * - Editor de imágenes con rol/orden/alt (D-05).
- * - Metadatos de revisión y trazabilidad (versión, tarea, confianza).
- *
- * No borra campos desconocidos: el formulario solo envía las claves que el
- * usuario ve; la API hace `merge` sobre el documento original.
+ * Prioriza el contenido que el revisor debe editar (enunciado, imágenes,
+ * opciones, respuesta, explicación) y oculta los metadatos técnicos
+ * (ID, versión, schema, componente, etc.) detrás de un panel desplegable,
+ * ya que rara vez se necesitan durante la revisión de reportes.
  */
 
 import { useState } from 'react';
 import type { ChangeEvent, FormEvent, ReactNode } from 'react';
-import {
-  AREAS,
-  DIFICULTADES,
-  ESTADOS,
-  esRazonamiento,
-  type EstadoPregunta,
-  type ImagenRef,
-  type PreguntaEditable,
-} from './types';
+import ImagenPreview from './ImagenPreview';
+import { AREAS, type ImagenRef, type PreguntaEditable } from './types';
 
 interface Props {
   initial: PreguntaEditable;
@@ -34,7 +23,6 @@ interface Props {
 
 const inputClase =
   'w-full rounded-md border-gray-300 shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
-const inputLectura = `${inputClase} bg-gray-100`;
 
 function Etiqueta({ texto, htmlFor }: { texto: string; htmlFor: string }): ReactNode {
   return (
@@ -58,9 +46,7 @@ export default function QuestionForm({
 }: Props) {
   const [datos, setDatos] = useState<PreguntaEditable>(initial);
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
-  const [contextoIdsTexto, setContextoIdsTexto] = useState(
-    (initial.contexto_ids ?? []).join(', '),
-  );
+  const [mostrarMetadatos, setMostrarMetadatos] = useState(false);
 
   const set = <K extends keyof PreguntaEditable>(
     campo: K,
@@ -126,8 +112,6 @@ export default function QuestionForm({
       setErrorLocal('El subtema es obligatorio (taxonomía RL01–RL18 / CL01–CL14).');
       return;
     }
-    // El motivo solo es obligatorio al deshabilitar desde otro estado; editar
-    // otros campos de una pregunta ya deshabilitada no debe exigirlo de nuevo.
     const deshabilitando =
       datos.estado === 'deshabilitado' && initial.estado !== 'deshabilitado';
     if (deshabilitando && !datos.motivo?.trim()) {
@@ -161,18 +145,14 @@ export default function QuestionForm({
       }
     }
 
-    const contextoIds = contextoIdsTexto
-      .split(',')
-      .map((v) => v.trim())
-      .filter(Boolean);
-
-    onSubmit({ ...datos, contexto_ids: contextoIds });
+    onSubmit(datos);
   };
 
-  const esRL = esRazonamiento(datos.area);
-
   return (
-    <form onSubmit={enviar} className="bg-white rounded-xl shadow-sm p-6 space-y-5">
+    <form
+      onSubmit={enviar}
+      className="bg-white rounded-xl shadow-sm p-6 sm:p-8 space-y-6"
+    >
       {(errorLocal || serverError) && (
         <div className="p-3 bg-red-50 rounded border border-red-200 text-red-700 text-sm">
           {errorLocal ?? serverError}
@@ -184,179 +164,51 @@ export default function QuestionForm({
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
-          <Etiqueta texto="ID" htmlFor="f-id" />
-          <input id="f-id" value={datos.id} disabled className={inputLectura} />
-        </div>
-        <div>
-          <Etiqueta texto="Versión del banco" htmlFor="f-version" />
-          <input
-            id="f-version"
-            value={datos.bank_version}
-            disabled
-            className={`${inputLectura} font-mono`}
-          />
-        </div>
-        <div>
-          <Etiqueta texto="Schema" htmlFor="f-schema" />
-          <input
-            id="f-schema"
-            value={datos.schema_version}
-            disabled
-            className={inputLectura}
-          />
-        </div>
+      {/* Encabezado: solo lo esencial */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+        <span
+          className={`text-xs px-2 py-0.5 rounded font-medium ${
+            datos.estado === 'aprobado'
+              ? 'bg-green-100 text-green-700'
+              : datos.estado === 'aprobado_con_imagen'
+                ? 'bg-emerald-100 text-emerald-700'
+                : datos.estado === 'pendiente'
+                  ? 'bg-yellow-100 text-yellow-700'
+                  : 'bg-gray-100 text-gray-700'
+          }`}
+        >
+          {datos.estado}
+        </span>
+        <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700">
+          {datos.dificultad || '—'}
+        </span>
+        {datos.opciones_en_imagen && (
+          <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">
+            Opciones en imagen
+          </span>
+        )}
+        {datos.verificada && (
+          <span className="text-xs px-2 py-0.5 rounded bg-green-50 text-green-700">
+            Verificada
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => setMostrarMetadatos((prev) => !prev)}
+          className="ml-auto text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 underline-offset-2 hover:underline"
+        >
+          {mostrarMetadatos ? 'Ocultar' : 'Mostrar'} técnica
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
-          <Etiqueta texto="Área" htmlFor="f-area" />
-          <select
-            id="f-area"
-            value={datos.area}
-            onChange={(e) => set('area', e.target.value)}
-            className={inputClase}
-            disabled={soloLectura}
-          >
-            {AREAS.map((a) => (
-              <option key={a} value={a}>
-                {a === 'razonamiento_logico'
-                  ? 'Razonamiento Lógico'
-                  : 'Competencia Lectora'}
-              </option>
-            ))}
-          </select>
+      {/* Contexto compartido */}
+      {datos.contexto && (
+        <div className="p-3 bg-slate-50 rounded-lg text-sm text-gray-700 whitespace-pre-wrap border border-gray-100">
+          {datos.contexto}
         </div>
-        <div>
-          <Etiqueta texto="Estado" htmlFor="f-estado" />
-          <select
-            id="f-estado"
-            value={datos.estado}
-            onChange={(e) => set('estado', e.target.value as EstadoPregunta)}
-            className={inputClase}
-            disabled={soloLectura}
-          >
-            {ESTADOS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <Ayuda>
-            Publicar exige taxonomía, 4 opciones, respuesta, verificación e imágenes con
-            URL cuando aplique.
-          </Ayuda>
-        </div>
-        <div>
-          <Etiqueta texto="Verificada" htmlFor="f-verificada" />
-          <label className="flex items-center gap-2 text-sm text-gray-700 py-2">
-            <input
-              id="f-verificada"
-              type="checkbox"
-              checked={datos.verificada}
-              onChange={(e) => set('verificada', e.target.checked)}
-              disabled={soloLectura}
-            />
-            Revisada por una persona
-          </label>
-        </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
-          <Etiqueta texto="Componente" htmlFor="f-componente" />
-          <input
-            id="f-componente"
-            name="componente"
-            value={datos.componente}
-            onChange={onCampoTexto}
-            className={inputClase}
-            disabled={soloLectura}
-          />
-        </div>
-        <div>
-          <Etiqueta texto="Subtema (taxonomía)" htmlFor="f-subtema" />
-          <input
-            id="f-subtema"
-            name="subtema"
-            value={datos.subtema}
-            onChange={onCampoTexto}
-            className={inputClase}
-            disabled={soloLectura}
-            placeholder="Ej: RL02 Porcentajes"
-          />
-        </div>
-        <div>
-          <Etiqueta texto="Dificultad" htmlFor="f-dificultad" />
-          <select
-            id="f-dificultad"
-            value={datos.dificultad}
-            onChange={(e) => set('dificultad', e.target.value)}
-            className={inputClase}
-            disabled={soloLectura}
-          >
-            {DIFICULTADES.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div>
-          <Etiqueta texto="Tarea" htmlFor="f-tarea" />
-          <input
-            id="f-tarea"
-            name="tarea"
-            value={datos.tarea ?? ''}
-            onChange={onCampoTexto}
-            className={inputClase}
-            disabled={soloLectura}
-            placeholder="T2"
-          />
-        </div>
-        <div>
-          <Etiqueta texto="Número" htmlFor="f-numero" />
-          <input
-            id="f-numero"
-            type="number"
-            value={datos.numero ?? ''}
-            onChange={(e) =>
-              set('numero', e.target.value === '' ? null : Number(e.target.value))
-            }
-            className={inputClase}
-            disabled={soloLectura}
-          />
-        </div>
-        <div>
-          <Etiqueta texto="Tipo" htmlFor="f-tipo" />
-          <input
-            id="f-tipo"
-            name="tipo"
-            value={datos.tipo ?? ''}
-            onChange={onCampoTexto}
-            className={inputClase}
-            disabled={soloLectura}
-            placeholder="individual | grupo"
-          />
-        </div>
-        <div>
-          <Etiqueta texto="Confianza del modelo" htmlFor="f-confianza" />
-          <input
-            id="f-confianza"
-            name="confianza_modelo"
-            value={datos.confianza_modelo ?? ''}
-            onChange={onCampoTexto}
-            className={inputClase}
-            disabled={soloLectura}
-            placeholder="alta | media | baja"
-          />
-        </div>
-      </div>
-
+      {/* Enunciado principal */}
       <div>
         <Etiqueta texto="Enunciado" htmlFor="f-pregunta" />
         <textarea
@@ -364,66 +216,133 @@ export default function QuestionForm({
           name="pregunta"
           value={datos.pregunta}
           onChange={onCampoTexto}
-          rows={4}
+          rows={5}
           className={inputClase}
           disabled={soloLectura}
         />
       </div>
 
-      <div>
-        <Etiqueta texto="Contexto compartido (texto)" htmlFor="f-ctx" />
-        <textarea
-          id="f-ctx"
-          name="contexto"
-          value={datos.contexto ?? ''}
-          onChange={onCampoTexto}
-          rows={3}
-          className={inputClase}
-          disabled={soloLectura}
-        />
-      </div>
-
-      {!esRL && (
+      {/* Imágenes reales (no URLs de texto) */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Etiqueta texto="Imágenes (D-05)" htmlFor="" />
+          {!soloLectura && (
+            <button
+              type="button"
+              onClick={agregarImagen}
+              className="text-sm px-3 py-1.5 rounded-md border border-blue-600 text-blue-700 hover:bg-blue-50"
+            >
+              + Agregar imagen
+            </button>
+          )}
+        </div>
+        {datos.imagenes.length === 0 ? (
+          <p className="text-sm text-gray-500">Sin imágenes asociadas.</p>
+        ) : (
+          <div className="space-y-4">
+            {datos.imagenes.map((imagen, indice) => (
+              <div
+                key={`${imagen.rol}-${indice}`}
+                className="rounded-xl border border-gray-200 bg-white p-4"
+              >
+                <ImagenPreview
+                  imagen={imagen}
+                  indice={indice}
+                  soloLectura={soloLectura}
+                  onUrlChange={(_indiceRecibido, url) =>
+                    setImagen(indice, { url: url || null })
+                  }
+                  onRemove={(idx) => quitarImagen(idx)}
+                />
+                {!soloLectura && (
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase">
+                        Rol
+                      </label>
+                      <select
+                        value={imagen.rol}
+                        onChange={(e) =>
+                          setImagen(indice, {
+                            rol: e.target.value === 'contexto' ? 'contexto' : 'pregunta',
+                          })
+                        }
+                        className={inputClase}
+                        disabled={soloLectura}
+                      >
+                        <option value="contexto">contexto</option>
+                        <option value="pregunta">pregunta</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase">
+                        Orden
+                      </label>
+                      <input
+                        type="number"
+                        value={imagen.orden}
+                        onChange={(e) =>
+                          setImagen(indice, {
+                            orden: Number(e.target.value) || 1,
+                          })
+                        }
+                        className={inputClase}
+                        disabled={soloLectura}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase">
+                        Texto alternativo
+                      </label>
+                      <input
+                        value={imagen.alt ?? ''}
+                        onChange={(e) =>
+                          setImagen(indice, {
+                            alt: e.target.value.trim() || null,
+                          })
+                        }
+                        className={inputClase}
+                        disabled={soloLectura}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         <div>
-          <Etiqueta texto="Texto base (lectura)" htmlFor="f-texto" />
-          <textarea
-            id="f-texto"
-            name="texto_base"
-            value={datos.texto_base ?? ''}
-            onChange={onCampoTexto}
-            rows={4}
+          <Etiqueta texto="imagen_url (compatibilidad)" htmlFor="f-imagenurl" />
+          <input
+            id="f-imagenurl"
+            value={datos.imagen_url ?? ''}
+            onChange={(e) => set('imagen_url', e.target.value.trim() || null)}
             className={inputClase}
             disabled={soloLectura}
           />
+          <Ayuda>
+            Se mantiene para clientes antiguos; la app v2 prioriza `imagenes[]`.
+          </Ayuda>
         </div>
-      )}
-
-      <div>
-        <Etiqueta texto="IDs de contexto (separados por coma)" htmlFor="f-ctxids" />
-        <input
-          id="f-ctxids"
-          value={contextoIdsTexto}
-          onChange={(e) => setContextoIdsTexto(e.target.value)}
-          className={`${inputClase} font-mono`}
-          placeholder="T2-C01, T2-C02"
-          disabled={soloLectura}
-        />
-        <Ayuda>Deben existir en `contexts_v2` para poder publicar el lote.</Ayuda>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {(['A', 'B', 'C', 'D'] as const).map((letra) => (
-          <div key={letra}>
-            <Etiqueta texto={`Opción ${letra}`} htmlFor={`f-op-${letra}`} />
-            <input
-              id={`f-op-${letra}`}
-              value={datos.opciones[letra]}
-              onChange={(e) => setOpcion(letra, e.target.value)}
-              className={inputClase}
-              disabled={soloLectura}
-            />
-          </div>
-        ))}
+      {/* Opciones */}
+      <div>
+        <Etiqueta texto="Opciones" htmlFor="" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {(['A', 'B', 'C', 'D'] as const).map((letra) => (
+            <div key={letra}>
+              <Etiqueta texto={`Opción ${letra}`} htmlFor={`f-op-${letra}`} />
+              <input
+                id={`f-op-${letra}`}
+                value={datos.opciones[letra]}
+                onChange={(e) => setOpcion(letra, e.target.value)}
+                className={inputClase}
+                disabled={soloLectura}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -468,6 +387,7 @@ export default function QuestionForm({
         </div>
       </div>
 
+      {/* Explicación */}
       <div>
         <Etiqueta texto="Explicación" htmlFor="f-expl" />
         <textarea
@@ -481,140 +401,142 @@ export default function QuestionForm({
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Campos de área / componente / subtema / taxonomía */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
-          <Etiqueta texto="Fuente" htmlFor="f-fuente" />
+          <Etiqueta texto="Área" htmlFor="f-area" />
+          <select
+            id="f-area"
+            value={datos.area}
+            onChange={(e) => set('area', e.target.value)}
+            className={inputClase}
+            disabled={soloLectura}
+          >
+            {AREAS.map((a) => (
+              <option key={a} value={a}>
+                {a === 'razonamiento_logico'
+                  ? 'Razonamiento Lógico'
+                  : 'Competencia Lectora'}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Etiqueta texto="Componente" htmlFor="f-componente" />
           <input
-            id="f-fuente"
-            name="fuente"
-            value={datos.fuente ?? ''}
+            id="f-componente"
+            name="componente"
+            value={datos.componente}
             onChange={onCampoTexto}
             className={inputClase}
             disabled={soloLectura}
           />
         </div>
         <div>
-          <Etiqueta texto="Tipo de fuente" htmlFor="f-tipofuente" />
+          <Etiqueta texto="Subtema (taxonomía)" htmlFor="f-subtema" />
           <input
-            id="f-tipofuente"
-            name="tipo_fuente"
-            value={datos.tipo_fuente ?? ''}
+            id="f-subtema"
+            name="subtema"
+            value={datos.subtema}
             onChange={onCampoTexto}
             className={inputClase}
             disabled={soloLectura}
+            placeholder="Ej: RL02 Porcentajes"
           />
         </div>
       </div>
 
-      <div className="border-t pt-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-800">
-            Imágenes (D-05: contexto y pregunta)
-          </h3>
-          {!soloLectura && (
-            <button
-              type="button"
-              onClick={agregarImagen}
-              className="text-sm px-3 py-1.5 rounded-md border border-blue-600 text-blue-700 hover:bg-blue-50"
-            >
-              + Agregar imagen
-            </button>
-          )}
-        </div>
-        {datos.imagenes.length === 0 ? (
-          <p className="text-sm text-gray-500">Sin imágenes asociadas.</p>
-        ) : (
-          <div className="space-y-3">
-            {datos.imagenes.map((imagen, indice) => (
-              <div
-                key={`${imagen.rol}-${indice}`}
-                className="rounded-lg border border-gray-200 p-3 grid grid-cols-1 sm:grid-cols-12 gap-3"
-              >
-                <div className="sm:col-span-5">
-                  <Etiqueta texto="URL" htmlFor={`f-img-url-${indice}`} />
+      {/* Metadatos técnicos — ocultos por defecto */}
+      {mostrarMetadatos && (
+        <details className="border border-gray-200 rounded-lg overflow-hidden">
+          <summary className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer list-none font-medium text-sm text-gray-600 hover:bg-gray-100">
+            <span>Metadatos técnicos (infraestructura)</span>
+            <span className="text-xs text-gray-500">Ocultar</span>
+          </summary>
+          <div className="p-4 space-y-3 text-sm grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase">ID</p>
+              <p className="text-gray-700 font-mono">{datos.id}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase">
+                Versión banco
+              </p>
+              <p className="text-gray-700 font-mono">{datos.bank_version}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase">Schema</p>
+              <p className="text-gray-700 font-mono">{datos.schema_version}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase">Tarea</p>
+              <p className="text-gray-700">{datos.tarea ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase">Número</p>
+              <p className="text-gray-700">{datos.numero ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase">Tipo</p>
+              <p className="text-gray-700">{datos.tipo ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase">
+                Confianza modelo
+              </p>
+              <p className="text-gray-700">{datos.confianza_modelo ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase">Verificada</p>
+              <p className="text-gray-700">
+                <label className="flex items-center gap-2">
                   <input
-                    id={`f-img-url-${indice}`}
-                    value={imagen.url ?? ''}
-                    onChange={(e) =>
-                      setImagen(indice, { url: e.target.value.trim() || null })
-                    }
-                    className={inputClase}
-                    placeholder="https://…"
+                    type="checkbox"
+                    checked={datos.verificada}
+                    onChange={(e) => set('verificada', e.target.checked)}
                     disabled={soloLectura}
                   />
-                </div>
-                <div className="sm:col-span-2">
-                  <Etiqueta texto="Rol" htmlFor={`f-img-rol-${indice}`} />
-                  <select
-                    id={`f-img-rol-${indice}`}
-                    value={imagen.rol}
-                    onChange={(e) =>
-                      setImagen(indice, {
-                        rol: e.target.value === 'contexto' ? 'contexto' : 'pregunta',
-                      })
-                    }
-                    className={inputClase}
-                    disabled={soloLectura}
-                  >
-                    <option value="contexto">contexto</option>
-                    <option value="pregunta">pregunta</option>
-                  </select>
-                </div>
-                <div className="sm:col-span-1">
-                  <Etiqueta texto="Orden" htmlFor={`f-img-orden-${indice}`} />
-                  <input
-                    id={`f-img-orden-${indice}`}
-                    type="number"
-                    value={imagen.orden}
-                    onChange={(e) =>
-                      setImagen(indice, { orden: Number(e.target.value) || 1 })
-                    }
-                    className={inputClase}
-                    disabled={soloLectura}
-                  />
-                </div>
-                <div className="sm:col-span-3">
-                  <Etiqueta texto="Texto alternativo" htmlFor={`f-img-alt-${indice}`} />
-                  <input
-                    id={`f-img-alt-${indice}`}
-                    value={imagen.alt ?? ''}
-                    onChange={(e) =>
-                      setImagen(indice, { alt: e.target.value.trim() || null })
-                    }
-                    className={inputClase}
-                    disabled={soloLectura}
-                  />
-                </div>
-                <div className="sm:col-span-1 flex items-end">
-                  {!soloLectura && (
-                    <button
-                      type="button"
-                      onClick={() => quitarImagen(indice)}
-                      className="w-full py-2 rounded-md border border-red-300 text-red-700 text-sm hover:bg-red-50"
-                      title="Quitar imagen"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+                  {datos.verificada ? 'Sí' : 'No'}
+                </label>
+              </p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase">Texto base</p>
+              <p className="text-gray-700 whitespace-pre-wrap">
+                {datos.texto_base ?? '—'}
+              </p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase">
+                IDs de contexto
+              </p>
+              <p className="text-gray-700 font-mono whitespace-pre-wrap">
+                {(datos.contexto_ids ?? []).join(', ') || '—'}
+              </p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase">Fuente</p>
+              <p className="text-gray-700">{datos.fuente ?? '—'}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase">Tipo fuente</p>
+              <p className="text-gray-700">{datos.tipo_fuente ?? '—'}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase">
+                Revisado por
+              </p>
+              <p className="text-gray-700">{datos.revisado_por ?? '—'}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase">
+                Fecha revisión
+              </p>
+              <p className="text-gray-700">{datos.fecha_revision ?? '—'}</p>
+            </div>
           </div>
-        )}
-        <div>
-          <Etiqueta texto="imagen_url (compatibilidad)" htmlFor="f-imagenurl" />
-          <input
-            id="f-imagenurl"
-            value={datos.imagen_url ?? ''}
-            onChange={(e) => set('imagen_url', e.target.value.trim() || null)}
-            className={inputClase}
-            disabled={soloLectura}
-          />
-          <Ayuda>
-            Se mantiene para clientes antiguos; la app v2 prioriza `imagenes[]`.
-          </Ayuda>
-        </div>
-      </div>
+        </details>
+      )}
 
       {datos.estado === 'deshabilitado' && (
         <div>
@@ -640,40 +562,6 @@ export default function QuestionForm({
           </Ayuda>
         </div>
       )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
-          <Etiqueta texto="Revisado por" htmlFor="f-revisor" />
-          <input
-            id="f-revisor"
-            value={datos.revisado_por ?? ''}
-            onChange={(e) => set('revisado_por', e.target.value.trim() || null)}
-            className={inputClase}
-            disabled={soloLectura}
-          />
-        </div>
-        <div>
-          <Etiqueta texto="Fecha de revisión" htmlFor="f-fecharev" />
-          <input
-            id="f-fecharev"
-            value={datos.fecha_revision ?? ''}
-            onChange={(e) => set('fecha_revision', e.target.value.trim() || null)}
-            className={inputClase}
-            disabled={soloLectura}
-          />
-        </div>
-        <div>
-          <Etiqueta texto="Notas" htmlFor="f-notas" />
-          <input
-            id="f-notas"
-            name="notas"
-            value={datos.notas ?? ''}
-            onChange={onCampoTexto}
-            className={inputClase}
-            disabled={soloLectura}
-          />
-        </div>
-      </div>
 
       <div className="flex gap-3 pt-2">
         <button
