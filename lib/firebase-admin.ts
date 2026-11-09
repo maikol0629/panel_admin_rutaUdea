@@ -57,6 +57,7 @@ export const COLECCION_QUESTIONS = 'questions_v2';
 export const COLECCION_CONTEXTS = 'contexts_v2';
 export const COLECCION_BANK_MANIFEST = 'bank_manifest';
 export const COLECCION_SETTINGS = 'settings';
+export const COLECCION_REPORTES_PREGUNTAS = 'reportesPreguntas';
 
 export interface AdminIdentity {
   uid: string;

@@ -57,11 +57,19 @@ const MODULOS = [
   },
   {
     href: '/panel/reportes',
-    titulo: '📊 Reportes',
+    titulo: '📊 Reportes del banco',
     descripcion: 'Indicadores, distribución, estadísticas',
     hover: 'hover:bg-orange-50',
     borde: 'border-orange-300',
     texto: 'group-hover:text-orange-600',
+  },
+  {
+    href: '/panel/reportesPreguntas',
+    titulo: '🚨 Reportes de preguntas',
+    descripcion: 'Inconsistencias reportadas desde la app móvil',
+    hover: 'hover:bg-rose-50',
+    borde: 'border-rose-300',
+    texto: 'group-hover:text-rose-600',
   },
   {
     href: '/panel/usuarios',
