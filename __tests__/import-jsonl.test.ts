@@ -23,6 +23,7 @@ vi.mock('@/lib/firebase-admin', () => ({
   adminErrorStatus: () => 500,
   COLECCION_QUESTIONS: 'questions_v2',
   COLECCION_CONTEXTS: 'contexts_v2',
+  COLECCION_HISTORIAL: 'historialPreguntas',
   getAdminDb: () => ({
     collection: mocks.collection,
     batch: mocks.batch,
@@ -115,6 +116,13 @@ describe('POST /api/import/jsonl — preguntas', () => {
     expect(payload.resultado.coleccion).toBe('questions_v2');
     expect(payload.resultado.validas).toBe(1);
     expect(payload.resultado.invalidas).toBe(0);
+
+    const evento = mocks.setLote.mock.calls[1]?.[1] as Record<string, unknown>;
+    expect(evento['preguntaId']).toBe('T1-P01');
+    expect(evento['accion']).toBe('importacion');
+    expect(evento['origen']).toBe('importacion');
+    expect(evento['actorUid']).toBe('admin-1');
+    expect(evento['snapshot']).toBeTruthy();
   });
 
   it('respetar_estado=true conserva aprobado y verificación', async () => {

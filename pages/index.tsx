@@ -1,7 +1,7 @@
 /**
  * Página raíz (/).
  *
- * - Con sesión de admin verificada redirige a /panel.
+ * - Con sesión de admin o superadmin verificada redirige a /panel.
  * - Sin sesión redirige a /auth/login.
  * - Muestra un indicador de carga mientras se resuelve la sesión.
  */
@@ -24,7 +24,7 @@ export default function Root() {
         .getIdTokenResult()
         .then((tokenResult) => {
           const claims = tokenResult.claims as Record<string, unknown>;
-          if (claims['rol'] === 'admin') {
+          if (claims['rol'] === 'admin' || claims['rol'] === 'superadmin') {
             void router.replace('/panel');
           } else {
             signOut(auth).finally(() => {

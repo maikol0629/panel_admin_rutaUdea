@@ -19,9 +19,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import {
   adminErrorStatus,
+  COLECCION_HISTORIAL,
   COLECCION_QUESTIONS,
   getAdminDb,
   requireAdmin,
+  type AdminIdentity,
 } from '@/lib/firebase-admin';
 import {
   BANK_VERSION_DEFAULT,
@@ -29,6 +31,7 @@ import {
   esComponenteValido,
   type OpcionesPregunta,
 } from '@/lib/bank';
+import { construirEvento, snapshotPregunta } from '@/lib/historial';
 
 export const config = {
   api: { bodyParser: false },
@@ -242,8 +245,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
+  let identidad: AdminIdentity;
   try {
-    await requireAdmin(req);
+    identidad = await requireAdmin(req);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error de autenticación';
     return res.status(adminErrorStatus(error)).json({ error: message });
@@ -336,49 +340,62 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const esLectura = preg.componente.startsWith('CL');
         const area = esLectura ? 'competencia_lectora' : 'razonamiento_logico';
         const ahora = new Date().toISOString();
-        await getAdminDb()
-          .collection(COLECCION_QUESTIONS)
-          .doc(preg.id)
-          .set(
-            {
-              id: preg.id,
-              bank_version: BANK_VERSION_DEFAULT,
-              schema_version: SCHEMA_VERSION,
-              area,
-              componente: esLectura ? 'Competencia Lectora' : 'Razonamiento Lógico',
-              subtema: `${preg.componente} ${preg.subtema}`.trim(),
-              subtema_origen: preg.subtema,
-              competencia: '',
-              tipo_texto: esLectura ? '' : null,
-              dificultad: preg.dificultad,
-              contexto: preg.descripcion_contexto || null,
-              texto_base: null,
-              pregunta: preg.pregunta,
-              // Contrato v2: objeto {A,B,C,D}, no lista.
-              opciones: preg.opciones,
-              respuesta_correcta: preg.respuesta_correcta,
-              explicacion: preg.explicacion,
-              fuente: '',
-              tipo_fuente: '',
-              es_original: false,
-              verificada: false,
-              duplicado: false,
-              imagen_url: null,
-              imagenes: [],
-              requiere_imagen: false,
-              opciones_en_imagen: false,
-              // Toda importación CSV entra pendiente de revisión (D-08).
-              estado: 'pendiente',
-              created_at: ahora,
-              updated_at: ahora,
-              metadatos: {
-                fechaImportacion: ahora,
-                importadoPor: 'admin-panel-csv',
-                tiene_contexto_compartido: preg.tiene_contexto_compartido,
-              },
-            },
-            { merge: true },
-          );
+        const documento = {
+          id: preg.id,
+          bank_version: BANK_VERSION_DEFAULT,
+          schema_version: SCHEMA_VERSION,
+          area,
+          componente: esLectura ? 'Competencia Lectora' : 'Razonamiento Lógico',
+          subtema: `${preg.componente} ${preg.subtema}`.trim(),
+          subtema_origen: preg.subtema,
+          competencia: '',
+          tipo_texto: esLectura ? '' : null,
+          dificultad: preg.dificultad,
+          contexto: preg.descripcion_contexto || null,
+          texto_base: null,
+          pregunta: preg.pregunta,
+          // Contrato v2: objeto {A,B,C,D}, no lista.
+          opciones: preg.opciones,
+          respuesta_correcta: preg.respuesta_correcta,
+          explicacion: preg.explicacion,
+          fuente: '',
+          tipo_fuente: '',
+          es_original: false,
+          verificada: false,
+          duplicado: false,
+          imagen_url: null,
+          imagenes: [],
+          requiere_imagen: false,
+          opciones_en_imagen: false,
+          // Toda importación CSV entra pendiente de revisión (D-08).
+          estado: 'pendiente',
+          created_at: ahora,
+          updated_at: ahora,
+          metadatos: {
+            fechaImportacion: ahora,
+            importadoPor: 'admin-panel-csv',
+            tiene_contexto_compartido: preg.tiene_contexto_compartido,
+          },
+        };
+        const db = getAdminDb();
+        const lote = db.batch();
+        lote.set(db.collection(COLECCION_QUESTIONS).doc(preg.id), documento, {
+          merge: true,
+        });
+        lote.set(
+          db.collection(COLECCION_HISTORIAL).doc(),
+          construirEvento({
+            preguntaId: preg.id,
+            actorUid: identidad.uid,
+            actorNombre: identidad.nombre,
+            actorRol: identidad.rol,
+            accion: 'importacion',
+            origen: 'importacion',
+            archivo: filename,
+            snapshot: snapshotPregunta(documento),
+          }),
+        );
+        await lote.commit();
         preguntasInsertadas++;
       } catch (err) {
         console.error(`Error insertando pregunta ${preg.id}:`, err);

@@ -14,10 +14,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const hoisted = vi.hoisted(() => ({
   get: vi.fn(),
   set: vi.fn(),
+  commit: vi.fn(),
   requireAdmin: vi.fn(),
 }));
 
 vi.mock('@/lib/firebase-admin', () => ({
+  COLECCION_HISTORIAL: 'historialPreguntas',
   COLECCION_QUESTIONS: 'questions_v2',
   COLECCION_QUESTIONS_LEGACY: 'questions',
   getAdminDb: () => ({
@@ -27,6 +29,7 @@ vi.mock('@/lib/firebase-admin', () => ({
         set: hoisted.set,
       }),
     }),
+    batch: () => ({ set: hoisted.set, commit: hoisted.commit }),
   }),
   requireAdmin: hoisted.requireAdmin,
   adminErrorStatus: (error: { status?: number }) => error?.status ?? 500,
@@ -107,9 +110,11 @@ function mockDocumento(data: Record<string, unknown>) {
 beforeEach(() => {
   hoisted.get.mockReset();
   hoisted.set.mockReset();
+  hoisted.commit.mockReset();
   hoisted.requireAdmin.mockReset();
   hoisted.requireAdmin.mockResolvedValue({ uid: 'qa', rol: 'admin', nombre: 'QA' });
   hoisted.set.mockResolvedValue(undefined);
+  hoisted.commit.mockResolvedValue(undefined);
 });
 
 describe('banco legacy en solo lectura', () => {
@@ -188,8 +193,9 @@ describe('validación de publicación', () => {
       res as never,
     );
     expect(res.statusCode).toBe(200);
-    expect(hoisted.set).toHaveBeenCalledTimes(1);
-    const [cambios, opciones] = hoisted.set.mock.calls[0] as [
+    expect(hoisted.set).toHaveBeenCalledTimes(2);
+    const [, cambios, opciones] = hoisted.set.mock.calls[0] as [
+      unknown,
       Record<string, unknown>,
       { merge: boolean },
     ];
@@ -197,6 +203,51 @@ describe('validación de publicación', () => {
     expect(cambios['verificada']).toBe(true);
     expect(cambios['revisado_por']).toBe('QA');
     expect(opciones).toEqual({ merge: true });
+    expect(hoisted.commit).toHaveBeenCalledTimes(1);
+  });
+
+  it('registra el cambio con autor autenticado y reporte de origen', async () => {
+    mockDocumento(docValido());
+    const res = fakeResponse();
+    await handler(
+      fakeRequest(
+        'PUT',
+        { id: 'T1-P01' },
+        {
+          pregunta: '¿Cuánto es el 20 % de 100?',
+          reporteId: 'rep-123',
+        },
+      ),
+      res as never,
+    );
+    expect(res.statusCode).toBe(200);
+    const evento = hoisted.set.mock.calls[1]?.[1] as Record<string, unknown>;
+    expect(evento['preguntaId']).toBe('T1-P01');
+    expect(evento['accion']).toBe('edicion');
+    expect(evento['origen']).toBe('reporte');
+    expect(evento['reporteId']).toBe('rep-123');
+    expect(evento['actorUid']).toBe('qa');
+    expect(evento['actorNombre']).toBe('QA');
+    expect(evento['campos']).toContain('pregunta');
+    const cambios = evento['cambios'] as Record<string, unknown>;
+    expect(cambios['pregunta']).toEqual({
+      antes: '¿Cuánto es el 10 % de 100?',
+      despues: '¿Cuánto es el 20 % de 100?',
+    });
+  });
+
+  it('registra la deshabilitación en el historial', async () => {
+    mockDocumento(docValido({ estado: 'aprobado' }));
+    const res = fakeResponse();
+    await handler(
+      fakeRequest('DELETE', { id: 'T1-P01' }, { motivo: 'Duplicada' }),
+      res as never,
+    );
+    expect(res.statusCode).toBe(200);
+    const evento = hoisted.set.mock.calls[1]?.[1] as Record<string, unknown>;
+    expect(evento['accion']).toBe('deshabilitacion');
+    expect(evento['resumen']).toContain('Duplicada');
+    expect(hoisted.commit).toHaveBeenCalledTimes(1);
   });
 
   it('deshabilitar exige motivo', async () => {

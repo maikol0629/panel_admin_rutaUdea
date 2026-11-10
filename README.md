@@ -16,7 +16,8 @@ preguntas de RutaUdeA. Desde la Fase 7 trabaja con el **contrato v2**
 - ✅ Publicación de `bank_manifest/active` con verificación y confirmación.
 - ✅ Filtros por banco, `bank_version`, área, subtema, dificultad, estado,
   confianza, tarea, imágenes, opciones en imagen e incompletas.
-- ✅ Build, TypeScript y 33 tests en verde.
+- ✅ Historial de cambios por pregunta y auditoría global (`historialPreguntas`).
+- ✅ Build, TypeScript y 132 tests en verde.
 
 ## Requisitos
 
@@ -47,7 +48,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 ```bash
 npm install
 npm run dev        # desarrollo en http://localhost:3000
-npm test           # vitest: 4 archivos, 33 tests
+npm test           # vitest: 10 archivos, 132 tests
 npm run test:coverage # pruebas y umbrales de cobertura
 npm run lint       # ESLint
 npm run format:check # Prettier sin cambios pendientes
@@ -71,6 +72,7 @@ npm start          # servir el build
 | `/panel/importar-csv`          | Importador JSONL y CSV.                             |
 | `/panel/configurar`            | Parámetros del simulacro (sin cambios de contrato). |
 | `/panel/reportes`              | Reportes existentes.                                |
+| `/panel/historial`             | Auditoría global de cambios de preguntas.           |
 
 ## API
 
@@ -83,6 +85,7 @@ npm start          # servir el build
 | `/api/import/jsonl`                   | POST             | `?tipo=preguntas\|contextos`; por defecto `pendiente`/`verificada=false`.                                   |
 | `/api/import/csv`                     | POST             | Parser RFC 4180; escribe en `questions_v2` como `pendiente`.                                                |
 | `/api/bank/manifest`                  | GET, POST        | GET verifica; POST publica con `confirmar: true`.                                                           |
+| `/api/historial`                      | GET              | Eventos de `historialPreguntas` con filtros y paginación (solo panel).                                      |
 | `/api/auth/login`, `/api/auth/verify` | POST             | Verificación del ID token y del claim admin.                                                                |
 
 ### Flujo de revisión
@@ -115,6 +118,24 @@ El manifiesto incluye `counts.aprobadas` (cantidad que la app descarga),
 `counts.total`, `hash`, `published_at/by`, `min_app_version`,
 `image_base_url`, `previous` e historial por versión.
 
+### Historial de cambios
+
+Cada escritura del panel sobre una pregunta registra un evento en la colección
+`historialPreguntas` (exclusiva del panel; la app móvil no la lee ni la escribe).
+El evento guarda autor autenticado (`actorUid`, `actorNombre`, `actorRol`),
+acción (`creacion`, `edicion`, `revision`, `deshabilitacion`, `importacion`),
+origen (`panel`, `reporte`, `importacion`), `reporteId` cuando el cambio nace de
+un reporte, el diff de los campos de contenido y, en creación/importación, un
+snapshot del contenido. La pregunta y su evento se escriben en el mismo batch.
+
+- `/panel/preguntas/[id]#historial`: timeline de esa pregunta.
+- `/panel/historial`: auditoría global con filtros por pregunta, acción, origen,
+  campo, actor, reporte, texto y rango de fechas.
+- Las imágenes `data:` URL nunca se guardan completas: solo `tipo`, `bytes` y
+  `sha256`, para respetar el límite de 1 MiB por documento de Firestore.
+- El historial empieza a registrarse desde esta implementación; los cambios
+  anteriores no se pueden reconstruir.
+
 ## Contrato de datos
 
 La fuente única es `lib/bank.ts`:
@@ -135,6 +156,10 @@ La fuente única es `lib/bank.ts`:
 - `import-jsonl.test.ts`: importación de preguntas/contextos con Firebase Admin
   mockeado, modo `respetar_estado`, filas inválidas y duplicados.
 - `manifest.test.ts`: hash estable del lote y parser CSV RFC 4180.
+- `historial.test.ts`: sanitización de imágenes, snapshots, diffs, resúmenes y
+  normalización de eventos.
+- `api-historial.test.ts`: filtros, orden, paginación y errores de
+  `GET /api/historial`.
 
 La autenticación y las escrituras reales en Firestore no se ejercitan en estos
 tests (requieren staging y credenciales).
@@ -142,9 +167,9 @@ tests (requieren staging y credenciales).
 `npm run test:coverage` genera HTML, LCOV y salida de consola, y aplica los
 umbrales definidos en `vitest.config.ts`: 80% de statements, líneas y
 funciones, y 75% de ramas. El reporte se publica como artefacto del workflow
-`Quality checks`. La última medición local alcanzó 81.16% de statements,
-82.82% de líneas y 92.36% de funciones; las ramas están en 69.63%, por lo que
-CI sigue fallando deliberadamente hasta cubrir las rutas defensivas restantes.
+`Quality checks`. La última medición local alcanzó 89.58% de statements,
+90.28% de líneas, 95.21% de funciones y 77.56% de ramas, por encima de los
+umbrales.
 
 El workflow valida formato, ESLint, TypeScript, pruebas y cobertura en cada
 pull request y en `main`/`master`. La auditoría de dependencias se ejecuta

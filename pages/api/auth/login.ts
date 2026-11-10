@@ -2,7 +2,7 @@
  * POST /api/auth/login
  *
  * Recibe el ID token del SDK cliente (`{ idToken }`), lo verifica con el
- * Admin SDK y exige el custom claim `rol === 'admin'`.
+ * Admin SDK y exige el custom claim `rol === 'admin'` o `rol === 'superadmin'`.
  * El login email/contraseña ocurre en el navegador; el servidor solo valida.
  */
 
@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const decoded = await getAdminAuth().verifyIdToken(idToken);
     const claims = decoded as unknown as Record<string, unknown>;
-    if (claims['rol'] !== 'admin') {
+    if (claims['rol'] !== 'admin' && claims['rol'] !== 'superadmin') {
       // Reutiliza el mensaje estándar de requireAdmin para consistencia.
       try {
         await requireAdmin({ headers: { authorization: `Bearer ${idToken}` } });

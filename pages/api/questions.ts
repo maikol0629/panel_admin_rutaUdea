@@ -15,10 +15,12 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import {
   adminErrorStatus,
+  COLECCION_HISTORIAL,
   COLECCION_QUESTIONS,
   COLECCION_QUESTIONS_LEGACY,
   getAdminDb,
   requireAdmin,
+  type AdminIdentity,
 } from '@/lib/firebase-admin';
 import {
   BANK_VERSION_DEFAULT,
@@ -28,6 +30,7 @@ import {
   resumenBanco,
   type PreguntaV2,
 } from '@/lib/bank';
+import { construirEvento, snapshotPregunta } from '@/lib/historial';
 
 const MAX_DOCS = 2000;
 
@@ -174,7 +177,11 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   });
 }
 
-async function handlePost(req: NextApiRequest, res: NextApiResponse) {
+async function handlePost(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  identidad: AdminIdentity,
+) {
   const body = leerCuerpo(req);
   const p = normalizarPregunta(asString(body['id']) || `T9-P${Date.now()}`, body);
 
@@ -224,9 +231,22 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     updated_at: ahora,
   };
 
-  await getAdminDb().collection(COLECCION_QUESTIONS).doc(p.id).set(documento, {
-    merge: true,
-  });
+  const db = getAdminDb();
+  const lote = db.batch();
+  lote.set(db.collection(COLECCION_QUESTIONS).doc(p.id), documento, { merge: true });
+  lote.set(
+    db.collection(COLECCION_HISTORIAL).doc(),
+    construirEvento({
+      preguntaId: p.id,
+      actorUid: identidad.uid,
+      actorNombre: identidad.nombre,
+      actorRol: identidad.rol,
+      accion: 'creacion',
+      origen: 'panel',
+      snapshot: snapshotPregunta(documento),
+    }),
+  );
+  await lote.commit();
 
   return res.status(200).json({
     success: true,
@@ -236,8 +256,9 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  let identidad: AdminIdentity;
   try {
-    await requireAdmin(req);
+    identidad = await requireAdmin(req);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error de autenticación';
     return res.status(adminErrorStatus(error)).json({ error: message });
@@ -245,7 +266,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     if (req.method === 'GET') return await handleGet(req, res);
-    if (req.method === 'POST') return await handlePost(req, res);
+    if (req.method === 'POST') return await handlePost(req, res, identidad);
     res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Método no permitido' });
   } catch (error) {

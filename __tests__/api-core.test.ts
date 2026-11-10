@@ -20,6 +20,7 @@ vi.mock('@/lib/firebase-admin', () => ({
   COLECCION_QUESTIONS_LEGACY: 'questions',
   COLECCION_SETTINGS: 'settings',
   COLECCION_BANK_MANIFEST: 'bank_manifest',
+  COLECCION_HISTORIAL: 'historialPreguntas',
   getAdminAuth: () => ({ verifyIdToken: mocks.verifyIdToken }),
   requireAdmin: mocks.requireAdmin,
   adminErrorStatus: (error: { status?: number }) => error?.status ?? 500,
@@ -379,7 +380,7 @@ describe('questions API', () => {
       res as never,
     );
     expect(res.statusCode).toBe(200);
-    expect((mocks.set.mock.calls[0]?.[0] as Record<string, unknown>).estado).toBe(
+    expect((mocks.set.mock.calls[0]?.[1] as Record<string, unknown>).estado).toBe(
       'pendiente',
     );
     const invalid = response();

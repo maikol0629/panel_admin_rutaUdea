@@ -1,10 +1,12 @@
 /**
  * Página /panel/preguntas/[id] — Detalle de una pregunta (contrato v2).
  *
- * Muestra todos los campos relevantes: estado, versión, taxonomía,
- * contexto, imágenes con rol y metadatos de revisión. Permite aprobar,
- * devolver a pendiente, rechazar/cuarentena (con motivo) y deshabilitar
- * (borrado lógico). El banco legacy se muestra en solo lectura.
+ * Presenta la pregunta como un alumno la ve en el examen (enunciado,
+ * imágenes reales, opciones con respuesta correcta, explicación). Los
+ * metadatos técnicos (ID, versión, schema, estado, etc.) se ocultan por
+ * defecto y solo se revelan si el revisor los necesita.
+ *
+ * Permite aprobar, devolver a pendiente, rechazar/cuarentena y deshabilitar.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -12,40 +14,20 @@ import { useRouter } from 'next/router';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAdminUser } from '@/hooks/useAdminUser';
-import { normalizarPregunta, type ImagenRef, type PreguntaV2 } from '@/lib/bank';
+import { normalizarPregunta, type PreguntaV2 } from '@/lib/bank';
+import PreguntaExamenCard from '@/components/questions/PreguntaExamenCard';
+import HistorialPregunta from '@/components/history/HistorialPregunta';
 import AdminLayout from '@/components/layout/AdminLayout';
-
-function Campo({ titulo, valor }: { titulo: string; valor: string }) {
-  if (!valor) return null;
-  return (
-    <div>
-      <h4 className="text-xs font-medium text-gray-400 uppercase">{titulo}</h4>
-      <p className="text-sm text-gray-800 whitespace-pre-wrap mt-1">{valor}</p>
-    </div>
-  );
-}
-
-function claseEstado(estado: string): string {
-  switch (estado) {
-    case 'aprobado':
-      return 'bg-green-100 text-green-700';
-    case 'aprobado_con_imagen':
-      return 'bg-emerald-100 text-emerald-700';
-    case 'pendiente':
-      return 'bg-yellow-100 text-yellow-700';
-    case 'deshabilitado':
-      return 'bg-red-100 text-red-700';
-    default:
-      return 'bg-gray-100 text-gray-700';
-  }
-}
 
 export default function PreguntaDetallePage() {
   const router = useRouter();
-  const { id, banco } = router.query;
+  const { id, banco, reporteId: reporteIdQuery } = router.query;
   const preguntaId = Array.isArray(id) ? (id[0] ?? '') : (id ?? '');
   const bancoParam =
     (Array.isArray(banco) ? banco[0] : banco) === 'legacy' ? 'legacy' : 'v2';
+  const reporteId = Array.isArray(reporteIdQuery)
+    ? (reporteIdQuery[0] ?? '')
+    : (reporteIdQuery ?? '');
   const { idToken } = useAdminUser();
   const [usuario, setUsuario] = useState<User | null>(null);
   const [pregunta, setPregunta] = useState<PreguntaV2 | null>(null);
@@ -53,6 +35,8 @@ export default function PreguntaDetallePage() {
   const [accionando, setAccionando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [mostrarMetadatos, setMostrarMetadatos] = useState(false);
+  const [historialVersion, setHistorialVersion] = useState(0);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -111,7 +95,12 @@ export default function PreguntaDetallePage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ accion, motivo, estado: estadoFinal }),
+        body: JSON.stringify({
+          accion,
+          motivo,
+          estado: estadoFinal,
+          reporteId: reporteId || undefined,
+        }),
       });
       const data = (await res.json()) as {
         success?: boolean;
@@ -127,6 +116,7 @@ export default function PreguntaDetallePage() {
       }
       setPregunta(normalizarPregunta(preguntaId, data.pregunta));
       setAviso(`Acción "${accion}" aplicada.`);
+      setHistorialVersion((valor) => valor + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado');
     } finally {
@@ -156,14 +146,13 @@ export default function PreguntaDetallePage() {
     void ejecutarAccion('deshabilitar', motivo.trim());
   };
 
-  const estado = pregunta?.estado ?? 'pendiente';
   const esLegacy = bancoParam === 'legacy';
-  const imagenes: ImagenRef[] = pregunta?.imagenes ?? [];
+  const estado = pregunta?.estado ?? 'pendiente';
 
   return (
     <AdminLayout
       title={preguntaId || 'Detalle de pregunta'}
-      subtitle={esLegacy ? 'Banco legacy · solo lectura' : 'Detalle y revisión'}
+      subtitle={esLegacy ? 'Banco legacy · solo lectura' : 'Revisión de pregunta'}
       user={usuario}
       backHref="/panel/preguntas"
       maxWidth="4xl"
@@ -183,137 +172,34 @@ export default function PreguntaDetallePage() {
 
       {!cargando && pregunta && (
         <>
-          <div className="bg-white rounded-xl shadow-sm p-6 mb-4">
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700">
-                {pregunta.area}
-              </span>
-              <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">
-                {pregunta.subtema}
-              </span>
-              <span className="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">
-                {pregunta.dificultad || 'sin dificultad'}
-              </span>
-              <span className={`text-xs px-2 py-0.5 rounded ${claseEstado(estado)}`}>
-                {estado}
-              </span>
-              {pregunta.opciones_en_imagen && (
-                <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">
-                  opciones en imagen
-                </span>
-              )}
-              {pregunta.verificada && (
-                <span className="text-xs px-2 py-0.5 rounded bg-green-50 text-green-700">
-                  verificada
-                </span>
-              )}
-              <span className="text-xs text-gray-400 font-mono">
-                {pregunta.bank_version} · schema {pregunta.schema_version}
-              </span>
-              <span className="ml-auto">
-                <a
-                  href={`/panel/preguntas/${encodeURIComponent(preguntaId)}/editar${
-                    esLegacy ? '?banco=legacy' : ''
-                  }`}
-                  className="text-sm text-blue-600 hover:underline font-medium"
-                >
-                  {esLegacy ? 'Consultar →' : 'Editar →'}
-                </a>
-              </span>
-            </div>
-
-            {pregunta.contexto && (
-              <div className="mb-4 p-3 bg-slate-50 rounded text-sm text-gray-700 whitespace-pre-wrap">
-                {pregunta.contexto}
-              </div>
-            )}
-
-            <h1 className="text-lg font-semibold text-gray-900 whitespace-pre-wrap">
-              {pregunta.pregunta}
-            </h1>
-
-            {imagenes.length > 0 && (
-              <div className="mt-4 space-y-3">
-                {imagenes.map((img, indice) => (
-                  <div key={`${img.rol}-${indice}`}>
-                    <p className="text-xs text-gray-500 mb-1">
-                      Imagen de {img.rol} {img.orden}
-                      {img.alt ? ` · ${img.alt}` : ''}
-                    </p>
-                    {img.url ? (
-                      <img
-                        src={img.url}
-                        alt={img.alt ?? `Imagen de ${img.rol}`}
-                        className="max-h-80 rounded border border-gray-200"
-                      />
-                    ) : (
-                      <p className="text-xs text-red-600">Imagen sin URL publicada.</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {pregunta.imagen_url && imagenes.length === 0 && (
-              <img
-                src={pregunta.imagen_url}
-                alt="Imagen de la pregunta"
-                className="mt-4 max-h-80 rounded border border-gray-200"
-              />
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-              {(['A', 'B', 'C', 'D'] as const).map((letra) => {
-                const esCorrecta = pregunta.respuesta_correcta === letra;
-                return (
-                  <div
-                    key={letra}
-                    className={`p-2 rounded border text-sm ${
-                      esCorrecta
-                        ? 'border-green-500 bg-green-50 font-medium'
-                        : 'border-gray-200'
-                    }`}
-                  >
-                    <span className="font-mono font-bold mr-2">{letra}.</span>
-                    {pregunta.opciones[letra]}
-                    {esCorrecta && (
-                      <span className="ml-2 text-xs text-green-700">✓ correcta</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            {!pregunta.respuesta_correcta && (
-              <p className="mt-2 text-sm text-red-600">
-                Sin respuesta definida — no se puede aprobar hasta definirla.
-              </p>
-            )}
+          {/* Botón para mostrar/ocultar metadatos técnicos */}
+          <div className="mb-4 flex justify-between items-center">
+            <button
+              type="button"
+              onClick={() => setMostrarMetadatos((prev) => !prev)}
+              className="text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 underline-offset-2 hover:underline"
+            >
+              {mostrarMetadatos ? 'Ocultar' : 'Mostrar'} información técnica
+            </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
-            <Campo titulo="Explicación" valor={pregunta.explicacion ?? ''} />
-            <Campo titulo="Texto base" valor={pregunta.texto_base ?? ''} />
-            <Campo
-              titulo="IDs de contexto"
-              valor={(pregunta.contexto_ids ?? []).join(', ')}
-            />
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-              <Campo titulo="Fuente" valor={pregunta.fuente ?? ''} />
-              <Campo titulo="Tipo fuente" valor={pregunta.tipo_fuente ?? ''} />
-              <Campo titulo="Tarea" valor={pregunta.tarea ?? ''} />
-              <Campo
-                titulo="Número"
-                valor={pregunta.numero != null ? String(pregunta.numero) : ''}
-              />
-              <Campo titulo="Confianza modelo" valor={pregunta.confianza_modelo ?? ''} />
-              <Campo titulo="Revisado por" valor={pregunta.revisado_por ?? ''} />
-              <Campo titulo="Fecha revisión" valor={pregunta.fecha_revision ?? ''} />
-              <Campo titulo="Notas" valor={pregunta.notas ?? ''} />
-            </div>
-          </div>
+          <PreguntaExamenCard
+            pregunta={pregunta}
+            mostrarMetadatos={mostrarMetadatos}
+            onEditar={
+              !esLegacy
+                ? () =>
+                    void router.push(
+                      `/panel/preguntas/${encodeURIComponent(preguntaId)}/editar${
+                        reporteId ? `?reporteId=${encodeURIComponent(reporteId)}` : ''
+                      }`,
+                    )
+                : undefined
+            }
+          />
 
           {!esLegacy && (
-            <div className="bg-white rounded-xl shadow-sm p-6 mt-4">
+            <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
               <h3 className="text-sm font-medium text-gray-700 mb-3">Revisión</h3>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -358,6 +244,14 @@ export default function PreguntaDetallePage() {
                 motivo y se registran en las notas.
               </p>
             </div>
+          )}
+
+          {!esLegacy && (
+            <HistorialPregunta
+              key={`${preguntaId}-${historialVersion}`}
+              preguntaId={preguntaId}
+              reporteId={reporteId || null}
+            />
           )}
         </>
       )}
